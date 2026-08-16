@@ -39,7 +39,7 @@ const NAV = [
   { to: "/admin/customers", label: "Customers", icon: Users },
   { to: "/admin/import", label: "Import", icon: Upload },
   { to: "/admin/settings", label: "Settings", icon: Settings },
-] as const;
+] as Array<{ to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean }>;
 
 function AdminLayout() {
   const { user, roles, isStaff, loading } = useAuth();

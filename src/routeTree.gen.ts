@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicProductsRouteImport } from './routes/api/public/products'
+import { Route as ApiPublicProductsSlugRouteImport } from './routes/api/public/products.$slug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +23,39 @@ const ApiPublicProductsRoute = ApiPublicProductsRouteImport.update({
   path: '/api/public/products',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicProductsSlugRoute = ApiPublicProductsSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => ApiPublicProductsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/api/public/products': typeof ApiPublicProductsRoute
+  '/api/public/products': typeof ApiPublicProductsRouteWithChildren
+  '/api/public/products/$slug': typeof ApiPublicProductsSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/api/public/products': typeof ApiPublicProductsRoute
+  '/api/public/products': typeof ApiPublicProductsRouteWithChildren
+  '/api/public/products/$slug': typeof ApiPublicProductsSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/api/public/products': typeof ApiPublicProductsRoute
+  '/api/public/products': typeof ApiPublicProductsRouteWithChildren
+  '/api/public/products/$slug': typeof ApiPublicProductsSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/products'
+  fullPaths: '/' | '/api/public/products' | '/api/public/products/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/products'
-  id: '__root__' | '/' | '/api/public/products'
+  to: '/' | '/api/public/products' | '/api/public/products/$slug'
+  id: '__root__' | '/' | '/api/public/products' | '/api/public/products/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ApiPublicProductsRoute: typeof ApiPublicProductsRoute
+  ApiPublicProductsRoute: typeof ApiPublicProductsRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +74,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicProductsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/products/$slug': {
+      id: '/api/public/products/$slug'
+      path: '/$slug'
+      fullPath: '/api/public/products/$slug'
+      preLoaderRoute: typeof ApiPublicProductsSlugRouteImport
+      parentRoute: typeof ApiPublicProductsRoute
+    }
   }
 }
 
+interface ApiPublicProductsRouteChildren {
+  ApiPublicProductsSlugRoute: typeof ApiPublicProductsSlugRoute
+}
+
+const ApiPublicProductsRouteChildren: ApiPublicProductsRouteChildren = {
+  ApiPublicProductsSlugRoute: ApiPublicProductsSlugRoute,
+}
+
+const ApiPublicProductsRouteWithChildren =
+  ApiPublicProductsRoute._addFileChildren(ApiPublicProductsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ApiPublicProductsRoute: ApiPublicProductsRoute,
+  ApiPublicProductsRoute: ApiPublicProductsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

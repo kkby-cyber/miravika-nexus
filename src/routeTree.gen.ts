@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as ApiPublicCheckoutRouteImport } from './routes/api/public/checkout'
 import { Route as ApiPublicCollectionsRouteImport } from './routes/api/public/collections'
 import { Route as ApiPublicProductsRouteImport } from './routes/api/public/products'
@@ -33,6 +34,11 @@ const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const ApiPublicCheckoutRoute = ApiPublicCheckoutRouteImport.update({
   id: '/api/public/checkout',
@@ -68,8 +74,9 @@ const ApiPublicWebhooksRazorpayRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/admin/': typeof AdminIndexRoute
   '/api/public/checkout': typeof ApiPublicCheckoutRoute
   '/api/public/collections': typeof ApiPublicCollectionsRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
@@ -79,8 +86,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteRoute
   '/auth': typeof AuthRoute
+  '/admin': typeof AdminIndexRoute
   '/api/public/checkout': typeof ApiPublicCheckoutRoute
   '/api/public/collections': typeof ApiPublicCollectionsRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
@@ -91,8 +98,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/admin/': typeof AdminIndexRoute
   '/api/public/checkout': typeof ApiPublicCheckoutRoute
   '/api/public/collections': typeof ApiPublicCollectionsRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
@@ -106,6 +114,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/admin/'
     | '/api/public/checkout'
     | '/api/public/collections'
     | '/api/public/products'
@@ -115,8 +124,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin'
     | '/auth'
+    | '/admin'
     | '/api/public/checkout'
     | '/api/public/collections'
     | '/api/public/products'
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/admin/'
     | '/api/public/checkout'
     | '/api/public/collections'
     | '/api/public/products'
@@ -138,7 +148,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRouteRoute: typeof AdminRouteRoute
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiPublicCheckoutRoute: typeof ApiPublicCheckoutRoute
   ApiPublicCollectionsRoute: typeof ApiPublicCollectionsRoute
@@ -169,6 +179,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/api/public/checkout': {
       id: '/api/public/checkout'
@@ -215,6 +232,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminRouteRouteChildren {
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
+
 interface ApiPublicProductsRouteChildren {
   ApiPublicProductsSlugRoute: typeof ApiPublicProductsSlugRoute
 }
@@ -228,7 +257,7 @@ const ApiPublicProductsRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRouteRoute: AdminRouteRoute,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiPublicCheckoutRoute: ApiPublicCheckoutRoute,
   ApiPublicCollectionsRoute: ApiPublicCollectionsRoute,

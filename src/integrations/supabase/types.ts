@@ -1434,6 +1434,10 @@ export type Database = {
     Functions: {
       can_manage_catalog: { Args: { _user_id: string }; Returns: boolean }
       can_manage_orders: { Args: { _user_id: string }; Returns: boolean }
+      finalize_inventory: {
+        Args: { _qty: number; _reference_id: string; _sku: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1442,6 +1446,24 @@ export type Database = {
         Returns: boolean
       }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      next_order_number: { Args: never; Returns: string }
+      release_inventory: {
+        Args: { _qty: number; _reference_id: string; _sku: string }
+        Returns: boolean
+      }
+      reserve_inventory: {
+        Args: { _qty: number; _reference_id: string; _sku: string }
+        Returns: boolean
+      }
+      restock_inventory: {
+        Args: {
+          _qty: number
+          _reference_id: string
+          _sku: string
+          _type: Database["public"]["Enums"]["movement_type"]
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "SUPER_ADMIN" | "ADMIN" | "ORDER_MANAGER" | "CATALOG_MANAGER"

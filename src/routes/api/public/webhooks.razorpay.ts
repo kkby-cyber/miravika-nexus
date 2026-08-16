@@ -53,7 +53,7 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
           event_type: body.event,
           signature_verified: true,
           processed: false,
-          payload: body as unknown as Record<string, unknown>,
+          payload: JSON.parse(raw),
         });
 
         if (insertError) {

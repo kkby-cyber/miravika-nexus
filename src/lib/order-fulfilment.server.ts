@@ -1,11 +1,8 @@
 import { logEvent } from "@/lib/api-response";
 
-type Admin = Awaited<
-  ReturnType<typeof import("@/integrations/supabase/client.server").then>
-> extends never
-  ? never
-  : // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Admin = any;
+
 
 /**
  * Idempotently marks an order PAID: finalises reserved inventory, records the

@@ -698,6 +698,7 @@ export type Database = {
           purchase_event_sent: boolean
           razorpay_order_id: string | null
           razorpay_payment_id: string | null
+          reservation_expires_at: string | null
           shipping_address: Json
           shipping_method_id: string | null
           shipping_total: number
@@ -722,13 +723,14 @@ export type Database = {
           id?: string
           inventory_finalized?: boolean
           notes?: string | null
-          order_number: string
+          order_number?: string
           paid_at?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           phone: string
           purchase_event_sent?: boolean
           razorpay_order_id?: string | null
           razorpay_payment_id?: string | null
+          reservation_expires_at?: string | null
           shipping_address?: Json
           shipping_method_id?: string | null
           shipping_total?: number
@@ -760,6 +762,7 @@ export type Database = {
           purchase_event_sent?: boolean
           razorpay_order_id?: string | null
           razorpay_payment_id?: string | null
+          reservation_expires_at?: string | null
           shipping_address?: Json
           shipping_method_id?: string | null
           shipping_total?: number
@@ -941,6 +944,7 @@ export type Database = {
           is_main: boolean
           position: number
           product_id: string
+          storage_key: string | null
           updated_at: string
           url: string
         }
@@ -951,6 +955,7 @@ export type Database = {
           is_main?: boolean
           position?: number
           product_id: string
+          storage_key?: string | null
           updated_at?: string
           url: string
         }
@@ -961,6 +966,7 @@ export type Database = {
           is_main?: boolean
           position?: number
           product_id?: string
+          storage_key?: string | null
           updated_at?: string
           url?: string
         }
@@ -1041,6 +1047,10 @@ export type Database = {
           height_cm: number | null
           hsn_code: string | null
           id: string
+          is_bestseller: boolean
+          is_featured: boolean
+          is_trending: boolean
+          is_visible: boolean
           length_cm: number | null
           material: string | null
           mrp: number | null
@@ -1071,6 +1081,10 @@ export type Database = {
           height_cm?: number | null
           hsn_code?: string | null
           id?: string
+          is_bestseller?: boolean
+          is_featured?: boolean
+          is_trending?: boolean
+          is_visible?: boolean
           length_cm?: number | null
           material?: string | null
           mrp?: number | null
@@ -1101,6 +1115,10 @@ export type Database = {
           height_cm?: number | null
           hsn_code?: string | null
           id?: string
+          is_bestseller?: boolean
+          is_featured?: boolean
+          is_trending?: boolean
+          is_visible?: boolean
           length_cm?: number | null
           material?: string | null
           mrp?: number | null

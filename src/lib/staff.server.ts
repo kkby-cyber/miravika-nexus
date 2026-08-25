@@ -246,8 +246,10 @@ export async function getStaffOverview(ctx: StaffCtx) {
     };
   });
 
-  const counts = { ONLINE: 0, IDLE: 0, OFFLINE: 0 };
-  staff.forEach((s) => counts[s.presence]++);
+  const counts: Record<Presence, number> = { ONLINE: 0, IDLE: 0, OFFLINE: 0 };
+  staff.forEach((s: { presence: Presence }) => {
+    counts[s.presence] += 1;
+  });
 
   return {
     thresholdMinutes: thresholdMin,
@@ -257,7 +259,10 @@ export async function getStaffOverview(ctx: StaffCtx) {
       idle: counts.IDLE,
       offline: counts.OFFLINE,
       todayActions: logs.length,
-      todayActiveSec: staff.reduce((s, x) => s + x.todayActiveSec, 0),
+      todayActiveSec: staff.reduce(
+        (sum: number, s: { todayActiveSec: number }) => sum + s.todayActiveSec,
+        0,
+      ),
     },
     staff,
   };
@@ -326,11 +331,11 @@ export async function getStaffDetail(
 
   if (!profile) throw new Error("Staff member not found");
 
-  const roleList = (roles ?? []).map((r: any) => r.role as StaffRole);
-  const permissions = (permRows ?? [])
-    .filter((p: any) => roleList.includes(p.role))
-    .map((p: any) => p.permission as string);
-  const uniquePerms = [...new Set(permissions)].sort();
+  const roleList: StaffRole[] = (roles ?? []).map((r: any) => r.role as StaffRole);
+  const permissions: string[] = ((permRows ?? []) as Array<{ role: string; permission: string }>)
+    .filter((p) => (roleList as string[]).includes(p.role))
+    .map((p) => p.permission);
+  const uniquePerms: string[] = Array.from(new Set(permissions)).sort();
 
   const sessionList = (sessions ?? []).map((s: any) => ({
     ...s,

@@ -5,7 +5,7 @@ import {
   CreditCard,
   LayoutDashboard,
   Package,
-  ReceiptPercent,
+  ClipboardList,
   ShieldCheck,
   ShoppingCart,
   TicketPercent,
@@ -68,7 +68,7 @@ const modules = [
     body: "Order creation, client verification, and signed webhooks with idempotent processing.",
   },
   {
-    icon: ReceiptPercent,
+    icon: ClipboardList,
     title: "Orders",
     body: "Human-readable order numbers, full status history, and lifecycle management.",
   },

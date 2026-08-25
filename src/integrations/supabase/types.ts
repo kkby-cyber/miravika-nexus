@@ -1484,7 +1484,16 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "SUPER_ADMIN" | "ADMIN" | "ORDER_MANAGER" | "CATALOG_MANAGER"
+      app_role:
+        | "SUPER_ADMIN"
+        | "ADMIN"
+        | "ORDER_MANAGER"
+        | "CATALOG_MANAGER"
+        | "MANAGER"
+        | "CATALOG_STAFF"
+        | "ORDER_STAFF"
+        | "MARKETING_STAFF"
+        | "SUPPORT"
       discount_type: "PERCENTAGE" | "FIXED"
       movement_type:
         | "import"
@@ -1644,7 +1653,17 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["SUPER_ADMIN", "ADMIN", "ORDER_MANAGER", "CATALOG_MANAGER"],
+      app_role: [
+        "SUPER_ADMIN",
+        "ADMIN",
+        "ORDER_MANAGER",
+        "CATALOG_MANAGER",
+        "MANAGER",
+        "CATALOG_STAFF",
+        "ORDER_STAFF",
+        "MARKETING_STAFF",
+        "SUPPORT",
+      ],
       discount_type: ["PERCENTAGE", "FIXED"],
       movement_type: [
         "import",

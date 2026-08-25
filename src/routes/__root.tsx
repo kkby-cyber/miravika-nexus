@@ -77,11 +77,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "MIRAVIKA Commerce Core" },
+      {
+        name: "description",
+        content:
+          "MIRAVIKA Commerce Core: production ecommerce backend with inventory, Razorpay payments, orders, coupons, and admin console.",
+      },
+      { name: "author", content: "MIRAVIKA" },
+      { property: "og:title", content: "MIRAVIKA Commerce Core" },
+      {
+        property: "og:description",
+        content:
+          "Production ecommerce backend with inventory, Razorpay payments, orders, coupons, and admin console.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },

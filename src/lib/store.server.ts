@@ -287,8 +287,8 @@ export async function quote(
   if (input.couponCode) {
     const check = await validateCoupon(admin, input.couponCode, {
       subtotal,
-      userId: input.userId,
-      productIds: resolved.lines.map((l) => l.productId!).filter(Boolean),
+      userId: input.userId ?? null,
+      productIds: resolved.lines.map((l) => l.productId).filter((id): id is string => Boolean(id)),
     });
     if (!check.ok) return { ok: false as const, code: check.code, message: check.message, sku: "" };
     coupon = check.coupon;

@@ -125,9 +125,12 @@ export type Database = {
           actor_id: string | null
           created_at: string
           entity_id: string | null
+          entity_name: string | null
           entity_type: string | null
           id: string
+          ip_address: string | null
           metadata: Json
+          user_agent: string | null
         }
         Insert: {
           action: string
@@ -135,9 +138,12 @@ export type Database = {
           actor_id?: string | null
           created_at?: string
           entity_id?: string | null
+          entity_name?: string | null
           entity_type?: string | null
           id?: string
+          ip_address?: string | null
           metadata?: Json
+          user_agent?: string | null
         }
         Update: {
           action?: string
@@ -145,9 +151,12 @@ export type Database = {
           actor_id?: string | null
           created_at?: string
           entity_id?: string | null
+          entity_name?: string | null
           entity_type?: string | null
           id?: string
+          ip_address?: string | null
           metadata?: Json
+          user_agent?: string | null
         }
         Relationships: []
       }
@@ -1218,6 +1227,24 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          created_at: string
+          permission: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          created_at?: string
+          permission: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          created_at?: string
+          permission?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
       shipping_methods: {
         Row: {
           created_at: string
@@ -1328,6 +1355,51 @@ export type Database = {
           key?: string
           updated_at?: string
           value?: Json
+        }
+        Relationships: []
+      }
+      staff_sessions: {
+        Row: {
+          created_at: string
+          end_reason: string | null
+          ended_at: string | null
+          id: string
+          ip_address: string | null
+          last_activity_at: string
+          revoked_at: string | null
+          revoked_by: string | null
+          started_at: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_reason?: string | null
+          ended_at?: string | null
+          id?: string
+          ip_address?: string | null
+          last_activity_at?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          started_at?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_reason?: string | null
+          ended_at?: string | null
+          id?: string
+          ip_address?: string | null
+          last_activity_at?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          started_at?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -1456,6 +1528,10 @@ export type Database = {
         Args: { _qty: number; _reference_id: string; _sku: string }
         Returns: boolean
       }
+      has_permission: {
+        Args: { _permission: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1464,6 +1540,18 @@ export type Database = {
         Returns: boolean
       }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      log_staff_activity: {
+        Args: {
+          _action: string
+          _entity_id?: string
+          _entity_name?: string
+          _entity_type?: string
+          _ip?: string
+          _metadata?: Json
+          _user_agent?: string
+        }
+        Returns: undefined
+      }
       next_order_number: { Args: never; Returns: string }
       release_inventory: {
         Args: { _qty: number; _reference_id: string; _sku: string }
@@ -1484,7 +1572,16 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "SUPER_ADMIN" | "ADMIN" | "ORDER_MANAGER" | "CATALOG_MANAGER"
+      app_role:
+        | "SUPER_ADMIN"
+        | "ADMIN"
+        | "ORDER_MANAGER"
+        | "CATALOG_MANAGER"
+        | "MANAGER"
+        | "CATALOG_STAFF"
+        | "ORDER_STAFF"
+        | "MARKETING_STAFF"
+        | "SUPPORT"
       discount_type: "PERCENTAGE" | "FIXED"
       movement_type:
         | "import"
@@ -1644,7 +1741,17 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["SUPER_ADMIN", "ADMIN", "ORDER_MANAGER", "CATALOG_MANAGER"],
+      app_role: [
+        "SUPER_ADMIN",
+        "ADMIN",
+        "ORDER_MANAGER",
+        "CATALOG_MANAGER",
+        "MANAGER",
+        "CATALOG_STAFF",
+        "ORDER_STAFF",
+        "MARKETING_STAFF",
+        "SUPPORT",
+      ],
       discount_type: ["PERCENTAGE", "FIXED"],
       movement_type: [
         "import",

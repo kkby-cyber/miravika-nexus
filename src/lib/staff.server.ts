@@ -271,6 +271,9 @@ export async function getStaffOverview(ctx: StaffCtx) {
       idle: counts.IDLE,
       offline: counts.OFFLINE,
       todayActions: logs.length,
+      todayOrders: staff.reduce((s: number, x: any) => s + x.todayOrders, 0),
+      todayProducts: staff.reduce((s: number, x: any) => s + x.todayProducts, 0),
+      todayInventory: staff.reduce((s: number, x: any) => s + x.todayInventory, 0),
       todayActiveSec: staff.reduce(
         (sum: number, s: { todayActiveSec: number }) => sum + s.todayActiveSec,
         0,

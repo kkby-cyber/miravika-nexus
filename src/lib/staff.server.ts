@@ -230,6 +230,7 @@ export async function getStaffOverview(ctx: StaffCtx) {
       0,
     );
     const userLogs = logs.filter((l: any) => l.actor_id === p.id);
+    const userWeekLogs = (weekLogs ?? []).filter((l: any) => l.actor_id === p.id);
     return {
       id: p.id,
       name: p.full_name || p.email || "Staff member",

@@ -298,7 +298,7 @@ export async function getStaffDetail(
   if (ctx.userId !== staffId) await requirePermission(ctx, "staff.view");
   else await requireStaff(ctx);
   const db = ctx.supabase;
-  const thresholdMin = await getInactivityThreshold(ctx);
+  const thresholdMin = await getInactivityThreshold(db);
   const nowMs = Date.now();
   const from = fromIso ? new Date(fromIso) : startOfToday();
   const to = toIso ? new Date(toIso) : new Date(nowMs + 60000);

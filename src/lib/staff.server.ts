@@ -196,7 +196,7 @@ export async function getStaffOverview(ctx: StaffCtx) {
   const today = startOfToday();
   const weekAgo = new Date(nowMs - 7 * 86400000);
 
-  const [{ data: roleRows }, { data: profiles }, { data: sessions }, { data: todayLogs }] =
+  const [{ data: roleRows }, { data: profiles }, { data: sessions }, { data: weekLogs }] =
     await Promise.all([
       db.from("user_roles").select("user_id, role"),
       db.from("profiles").select("id, email, full_name, created_at"),
@@ -207,9 +207,11 @@ export async function getStaffOverview(ctx: StaffCtx) {
         .order("started_at", { ascending: false }),
       db
         .from("audit_logs")
-        .select("actor_id, action, created_at")
-        .gte("created_at", today.toISOString()),
+        .select("actor_id, action, entity_type, created_at")
+        .gte("created_at", weekAgo.toISOString())
+        .limit(10000),
     ]);
+  const todayLogs = (weekLogs ?? []).filter((l: any) => new Date(l.created_at) >= today);
 
   const staffIds = new Set((roleRows ?? []).map((r: any) => r.user_id));
   const staffProfiles = (profiles ?? []).filter((p: any) => staffIds.has(p.id));

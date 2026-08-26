@@ -245,7 +245,16 @@ export async function getStaffOverview(ctx: StaffCtx) {
       todayActiveSec: todaySec,
       weekActiveSec: weekSec,
       todayActions: userLogs.length,
-      weekActions: 0,
+      weekActions: userWeekLogs.length,
+      todayOrders: userLogs.filter(
+        (l: any) => l.entity_type === "order" || String(l.action).startsWith("ORDER_"),
+      ).length,
+      todayProducts: userLogs.filter(
+        (l: any) => l.entity_type === "product" || String(l.action).startsWith("PRODUCT_"),
+      ).length,
+      todayInventory: userLogs.filter(
+        (l: any) => l.entity_type === "inventory" || String(l.action).startsWith("INVENTORY_"),
+      ).length,
     };
   });
 

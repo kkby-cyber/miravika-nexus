@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -77,8 +78,8 @@ function PermissionsPage() {
               </thead>
               <tbody>
                 {PERMISSION_GROUPS.map((group) => (
-                  <>
-                    <tr key={group.group} className="bg-muted/40">
+                  <Fragment key={group.group}>
+                    <tr className="bg-muted/40">
                       <td
                         className="p-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
                         colSpan={STAFF_ROLES.length + 1}
@@ -109,7 +110,7 @@ function PermissionsPage() {
                         })}
                       </tr>
                     ))}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>

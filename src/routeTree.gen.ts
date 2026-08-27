@@ -22,6 +22,7 @@ import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 import { Route as AdminProductsRouteImport } from './routes/admin/products'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminStaffIndexRouteImport } from './routes/admin/staff/index'
+import { Route as AdminStaffStaffIdRouteImport } from './routes/admin/staff/$staffId'
 import { Route as ApiPublicCheckoutRouteImport } from './routes/api/public/checkout'
 import { Route as ApiPublicCollectionsRouteImport } from './routes/api/public/collections'
 import { Route as ApiPublicProductsRouteImport } from './routes/api/public/products'
@@ -96,6 +97,11 @@ const AdminStaffIndexRoute = AdminStaffIndexRouteImport.update({
   path: '/staff/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminStaffStaffIdRoute = AdminStaffStaffIdRouteImport.update({
+  id: '/staff/$staffId',
+  path: '/staff/$staffId',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const ApiPublicCheckoutRoute = ApiPublicCheckoutRouteImport.update({
   id: '/api/public/checkout',
   path: '/api/public/checkout',
@@ -151,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/staff/$staffId': typeof AdminStaffStaffIdRoute
   '/api/public/checkout': typeof ApiPublicCheckoutRoute
   '/api/public/collections': typeof ApiPublicCollectionsRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin': typeof AdminIndexRoute
+  '/admin/staff/$staffId': typeof AdminStaffStaffIdRoute
   '/api/public/checkout': typeof ApiPublicCheckoutRoute
   '/api/public/collections': typeof ApiPublicCollectionsRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
@@ -197,6 +205,7 @@ export interface FileRoutesById {
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/staff/$staffId': typeof AdminStaffStaffIdRoute
   '/api/public/checkout': typeof ApiPublicCheckoutRoute
   '/api/public/collections': typeof ApiPublicCollectionsRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
@@ -222,6 +231,7 @@ export interface FileRouteTypes {
     | '/admin/products'
     | '/admin/settings'
     | '/admin/'
+    | '/admin/staff/$staffId'
     | '/api/public/checkout'
     | '/api/public/collections'
     | '/api/public/products'
@@ -244,6 +254,7 @@ export interface FileRouteTypes {
     | '/admin/products'
     | '/admin/settings'
     | '/admin'
+    | '/admin/staff/$staffId'
     | '/api/public/checkout'
     | '/api/public/collections'
     | '/api/public/products'
@@ -267,6 +278,7 @@ export interface FileRouteTypes {
     | '/admin/products'
     | '/admin/settings'
     | '/admin/'
+    | '/admin/staff/$staffId'
     | '/api/public/checkout'
     | '/api/public/collections'
     | '/api/public/products'
@@ -384,6 +396,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminStaffIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/staff/$staffId': {
+      id: '/admin/staff/$staffId'
+      path: '/staff/$staffId'
+      fullPath: '/admin/staff/$staffId'
+      preLoaderRoute: typeof AdminStaffStaffIdRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/api/public/checkout': {
       id: '/api/public/checkout'
       path: '/api/public/checkout'
@@ -453,6 +472,7 @@ interface AdminRouteRouteChildren {
   AdminProductsRoute: typeof AdminProductsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminStaffStaffIdRoute: typeof AdminStaffStaffIdRoute
   AdminStaffIndexRoute: typeof AdminStaffIndexRoute
 }
 
@@ -466,6 +486,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminProductsRoute: AdminProductsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminStaffStaffIdRoute: AdminStaffStaffIdRoute,
   AdminStaffIndexRoute: AdminStaffIndexRoute,
 }
 

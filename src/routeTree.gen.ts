@@ -21,6 +21,7 @@ import { Route as AdminInventoryRouteImport } from './routes/admin/inventory'
 import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 import { Route as AdminProductsRouteImport } from './routes/admin/products'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminStaffIndexRouteImport } from './routes/admin/staff/index'
 import { Route as ApiPublicCheckoutRouteImport } from './routes/api/public/checkout'
 import { Route as ApiPublicCollectionsRouteImport } from './routes/api/public/collections'
 import { Route as ApiPublicProductsRouteImport } from './routes/api/public/products'
@@ -90,6 +91,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminStaffIndexRoute = AdminStaffIndexRouteImport.update({
+  id: '/staff/',
+  path: '/staff/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const ApiPublicCheckoutRoute = ApiPublicCheckoutRouteImport.update({
   id: '/api/public/checkout',
   path: '/api/public/checkout',
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/api/public/checkout': typeof ApiPublicCheckoutRoute
   '/api/public/collections': typeof ApiPublicCollectionsRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
+  '/admin/staff/': typeof AdminStaffIndexRoute
   '/api/public/payments/verify': typeof ApiPublicPaymentsVerifyRoute
   '/api/public/products/$slug': typeof ApiPublicProductsSlugRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
@@ -169,6 +176,7 @@ export interface FileRoutesByTo {
   '/api/public/checkout': typeof ApiPublicCheckoutRoute
   '/api/public/collections': typeof ApiPublicCollectionsRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
+  '/admin/staff': typeof AdminStaffIndexRoute
   '/api/public/payments/verify': typeof ApiPublicPaymentsVerifyRoute
   '/api/public/products/$slug': typeof ApiPublicProductsSlugRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
@@ -192,6 +200,7 @@ export interface FileRoutesById {
   '/api/public/checkout': typeof ApiPublicCheckoutRoute
   '/api/public/collections': typeof ApiPublicCollectionsRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
+  '/admin/staff/': typeof AdminStaffIndexRoute
   '/api/public/payments/verify': typeof ApiPublicPaymentsVerifyRoute
   '/api/public/products/$slug': typeof ApiPublicProductsSlugRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
@@ -216,6 +225,7 @@ export interface FileRouteTypes {
     | '/api/public/checkout'
     | '/api/public/collections'
     | '/api/public/products'
+    | '/admin/staff/'
     | '/api/public/payments/verify'
     | '/api/public/products/$slug'
     | '/api/public/webhooks/razorpay'
@@ -237,6 +247,7 @@ export interface FileRouteTypes {
     | '/api/public/checkout'
     | '/api/public/collections'
     | '/api/public/products'
+    | '/admin/staff'
     | '/api/public/payments/verify'
     | '/api/public/products/$slug'
     | '/api/public/webhooks/razorpay'
@@ -259,6 +270,7 @@ export interface FileRouteTypes {
     | '/api/public/checkout'
     | '/api/public/collections'
     | '/api/public/products'
+    | '/admin/staff/'
     | '/api/public/payments/verify'
     | '/api/public/products/$slug'
     | '/api/public/webhooks/razorpay'
@@ -365,6 +377,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/staff/': {
+      id: '/admin/staff/'
+      path: '/staff'
+      fullPath: '/admin/staff/'
+      preLoaderRoute: typeof AdminStaffIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/api/public/checkout': {
       id: '/api/public/checkout'
       path: '/api/public/checkout'
@@ -434,6 +453,7 @@ interface AdminRouteRouteChildren {
   AdminProductsRoute: typeof AdminProductsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminStaffIndexRoute: typeof AdminStaffIndexRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
@@ -446,6 +466,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminProductsRoute: AdminProductsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminStaffIndexRoute: AdminStaffIndexRoute,
 }
 
 const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(

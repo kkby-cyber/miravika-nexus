@@ -23,10 +23,10 @@ function AuditLogsPage() {
     queryFn: () =>
       searchFn({
         data: {
-          search: filters.search || undefined,
-          action: filters.action || undefined,
-          fromIso: filters.fromIso ? new Date(filters.fromIso).toISOString() : undefined,
-          toIso: filters.toIso ? new Date(filters.toIso).toISOString() : undefined,
+          ...(filters.search ? { search: filters.search } : {}),
+          ...(filters.action ? { action: filters.action } : {}),
+          ...(filters.fromIso ? { fromIso: new Date(filters.fromIso).toISOString() } : {}),
+          ...(filters.toIso ? { toIso: new Date(filters.toIso).toISOString() } : {}),
         },
       }),
   });
@@ -101,7 +101,7 @@ function AuditLogsPage() {
                   </td>
                 </tr>
               )}
-              {(data ?? []).map((l) => (
+              {(data ?? []).map((l: any) => (
                 <tr key={l.id} className="border-b border-border/60 last:border-0">
                   <td className="p-3 text-muted-foreground">
                     {new Date(l.created_at).toLocaleString("en-IN")}

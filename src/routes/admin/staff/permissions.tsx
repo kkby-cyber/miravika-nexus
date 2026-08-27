@@ -41,7 +41,7 @@ function PermissionsPage() {
   });
 
   const has = (role: string, permission: string) =>
-    (data?.rows ?? []).some((r) => r.role === role && r.permission === permission);
+    (data?.rows ?? []).some((r: any) => r.role === role && r.permission === permission);
 
   return (
     <div className="space-y-6">

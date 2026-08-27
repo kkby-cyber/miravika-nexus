@@ -116,7 +116,7 @@ function StaffPage() {
                         </td>
                       </tr>
                     )}
-                    {data.staff.map((s) => (
+                    {data.staff.map((s: any) => (
                       <tr key={s.id} className="border-b border-border/60 last:border-0">
                         <td className="p-3">
                           <Link
@@ -177,7 +177,7 @@ function StaffPage() {
               </h2>
               <Card>
                 <CardContent className="space-y-2 p-4">
-                  {leaderboard.data.rows.map((r, i) => (
+                  {leaderboard.data.rows.map((r: any, i: number) => (
                     <div key={r.id} className="flex items-center justify-between text-sm">
                       <span>
                         {i + 1}. {r.name}

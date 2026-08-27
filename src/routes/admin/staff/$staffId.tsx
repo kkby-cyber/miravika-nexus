@@ -117,7 +117,7 @@ function StaffDetailPage() {
                         </td>
                       </tr>
                     )}
-                    {data.sessions.map((s) => (
+                    {data.sessions.map((s: any) => (
                       <tr key={s.id} className="border-b border-border/60 last:border-0">
                         <td className="p-3">{new Date(s.started_at).toLocaleString("en-IN")}</td>
                         <td className="p-3">{formatDuration(s.durationSec)}</td>
@@ -147,7 +147,7 @@ function StaffDetailPage() {
                 {data.activity.length === 0 && (
                   <p className="p-6 text-sm text-muted-foreground">No activity in this range.</p>
                 )}
-                {data.activity.map((a) => (
+                {data.activity.map((a: any) => (
                   <div key={a.id} className="flex items-center justify-between gap-4 p-3 text-sm">
                     <span>
                       {actionLabel(a.action)}

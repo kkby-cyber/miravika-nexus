@@ -23,6 +23,7 @@ import { Route as AdminProductsRouteImport } from './routes/admin/products'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminStaffIndexRouteImport } from './routes/admin/staff/index'
 import { Route as AdminStaffStaffIdRouteImport } from './routes/admin/staff/$staffId'
+import { Route as AdminStaffPermissionsRouteImport } from './routes/admin/staff/permissions'
 import { Route as ApiPublicCheckoutRouteImport } from './routes/api/public/checkout'
 import { Route as ApiPublicCollectionsRouteImport } from './routes/api/public/collections'
 import { Route as ApiPublicProductsRouteImport } from './routes/api/public/products'
@@ -102,6 +103,11 @@ const AdminStaffStaffIdRoute = AdminStaffStaffIdRouteImport.update({
   path: '/staff/$staffId',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminStaffPermissionsRoute = AdminStaffPermissionsRouteImport.update({
+  id: '/staff/permissions',
+  path: '/staff/permissions',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const ApiPublicCheckoutRoute = ApiPublicCheckoutRouteImport.update({
   id: '/api/public/checkout',
   path: '/api/public/checkout',
@@ -158,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/staff/$staffId': typeof AdminStaffStaffIdRoute
+  '/admin/staff/permissions': typeof AdminStaffPermissionsRoute
   '/api/public/checkout': typeof ApiPublicCheckoutRoute
   '/api/public/collections': typeof ApiPublicCollectionsRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
@@ -181,6 +188,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin': typeof AdminIndexRoute
   '/admin/staff/$staffId': typeof AdminStaffStaffIdRoute
+  '/admin/staff/permissions': typeof AdminStaffPermissionsRoute
   '/api/public/checkout': typeof ApiPublicCheckoutRoute
   '/api/public/collections': typeof ApiPublicCollectionsRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
@@ -206,6 +214,7 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/staff/$staffId': typeof AdminStaffStaffIdRoute
+  '/admin/staff/permissions': typeof AdminStaffPermissionsRoute
   '/api/public/checkout': typeof ApiPublicCheckoutRoute
   '/api/public/collections': typeof ApiPublicCollectionsRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
@@ -232,6 +241,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/'
     | '/admin/staff/$staffId'
+    | '/admin/staff/permissions'
     | '/api/public/checkout'
     | '/api/public/collections'
     | '/api/public/products'
@@ -255,6 +265,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin'
     | '/admin/staff/$staffId'
+    | '/admin/staff/permissions'
     | '/api/public/checkout'
     | '/api/public/collections'
     | '/api/public/products'
@@ -279,6 +290,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/'
     | '/admin/staff/$staffId'
+    | '/admin/staff/permissions'
     | '/api/public/checkout'
     | '/api/public/collections'
     | '/api/public/products'
@@ -403,6 +415,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminStaffStaffIdRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/staff/permissions': {
+      id: '/admin/staff/permissions'
+      path: '/staff/permissions'
+      fullPath: '/admin/staff/permissions'
+      preLoaderRoute: typeof AdminStaffPermissionsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/api/public/checkout': {
       id: '/api/public/checkout'
       path: '/api/public/checkout'
@@ -473,6 +492,7 @@ interface AdminRouteRouteChildren {
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminStaffStaffIdRoute: typeof AdminStaffStaffIdRoute
+  AdminStaffPermissionsRoute: typeof AdminStaffPermissionsRoute
   AdminStaffIndexRoute: typeof AdminStaffIndexRoute
 }
 
@@ -487,6 +507,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminStaffStaffIdRoute: AdminStaffStaffIdRoute,
+  AdminStaffPermissionsRoute: AdminStaffPermissionsRoute,
   AdminStaffIndexRoute: AdminStaffIndexRoute,
 }
 

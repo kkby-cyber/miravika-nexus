@@ -130,7 +130,7 @@ function StaffPage() {
                         </td>
                         <td className="p-3">
                           <div className="flex flex-wrap gap-1">
-                            {s.roles.map((r) => (
+                            {s.roles.map((r: string) => (
                               <Badge key={r} variant="outline">
                                 {ROLE_LABELS[r as StaffRole] ?? r}
                               </Badge>

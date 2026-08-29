@@ -709,7 +709,10 @@ export type Database = {
           razorpay_payment_id: string | null
           reservation_expires_at: string | null
           shipping_address: Json
+          shipping_attempts: number
+          shipping_last_error: string | null
           shipping_method_id: string | null
+          shipping_status: string
           shipping_total: number
           status: Database["public"]["Enums"]["order_status"]
           subtotal: number
@@ -741,7 +744,10 @@ export type Database = {
           razorpay_payment_id?: string | null
           reservation_expires_at?: string | null
           shipping_address?: Json
+          shipping_attempts?: number
+          shipping_last_error?: string | null
           shipping_method_id?: string | null
+          shipping_status?: string
           shipping_total?: number
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
@@ -773,7 +779,10 @@ export type Database = {
           razorpay_payment_id?: string | null
           reservation_expires_at?: string | null
           shipping_address?: Json
+          shipping_attempts?: number
+          shipping_last_error?: string | null
           shipping_method_id?: string | null
+          shipping_status?: string
           shipping_total?: number
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
@@ -1245,6 +1254,149 @@ export type Database = {
         }
         Relationships: []
       }
+      shipment_events: {
+        Row: {
+          created_at: string
+          id: string
+          location: string | null
+          note: string | null
+          occurred_at: string
+          order_id: string
+          raw: Json
+          shipment_id: string
+          status: string
+          status_code: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          location?: string | null
+          note?: string | null
+          occurred_at?: string
+          order_id: string
+          raw?: Json
+          shipment_id: string
+          status: string
+          status_code?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          location?: string | null
+          note?: string | null
+          occurred_at?: string
+          order_id?: string
+          raw?: Json
+          shipment_id?: string
+          status?: string
+          status_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipment_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipment_events_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shipments: {
+        Row: {
+          applied_weight: number | null
+          awb_code: string | null
+          cancelled_at: string | null
+          courier_company_id: string | null
+          courier_name: string | null
+          created_at: string
+          delivered_at: string | null
+          estimated_delivery_date: string | null
+          freight_charge: number | null
+          id: string
+          invoice_url: string | null
+          label_url: string | null
+          last_error: string | null
+          manifest_url: string | null
+          order_id: string
+          pickup_scheduled_date: string | null
+          provider: string
+          provider_order_id: string | null
+          provider_shipment_id: string | null
+          raw: Json
+          shipped_at: string | null
+          status: string
+          tracking_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          applied_weight?: number | null
+          awb_code?: string | null
+          cancelled_at?: string | null
+          courier_company_id?: string | null
+          courier_name?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          estimated_delivery_date?: string | null
+          freight_charge?: number | null
+          id?: string
+          invoice_url?: string | null
+          label_url?: string | null
+          last_error?: string | null
+          manifest_url?: string | null
+          order_id: string
+          pickup_scheduled_date?: string | null
+          provider?: string
+          provider_order_id?: string | null
+          provider_shipment_id?: string | null
+          raw?: Json
+          shipped_at?: string | null
+          status?: string
+          tracking_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          applied_weight?: number | null
+          awb_code?: string | null
+          cancelled_at?: string | null
+          courier_company_id?: string | null
+          courier_name?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          estimated_delivery_date?: string | null
+          freight_charge?: number | null
+          id?: string
+          invoice_url?: string | null
+          label_url?: string | null
+          last_error?: string | null
+          manifest_url?: string | null
+          order_id?: string
+          pickup_scheduled_date?: string | null
+          provider?: string
+          provider_order_id?: string | null
+          provider_shipment_id?: string | null
+          raw?: Json
+          shipped_at?: string | null
+          status?: string
+          tracking_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shipping_methods: {
         Row: {
           created_at: string
@@ -1605,6 +1757,13 @@ export type Database = {
         | "REFUNDED"
         | "RETURN_REQUESTED"
         | "RETURNED"
+        | "CONFIRMED"
+        | "SHIPMENT_CREATED"
+        | "AWB_ASSIGNED"
+        | "PICKUP_SCHEDULED"
+        | "RTO_INITIATED"
+        | "RTO_DELIVERED"
+        | "PAYMENT_FAILED"
       payment_status:
         | "PENDING"
         | "AUTHORIZED"
@@ -1776,6 +1935,13 @@ export const Constants = {
         "REFUNDED",
         "RETURN_REQUESTED",
         "RETURNED",
+        "CONFIRMED",
+        "SHIPMENT_CREATED",
+        "AWB_ASSIGNED",
+        "PICKUP_SCHEDULED",
+        "RTO_INITIATED",
+        "RTO_DELIVERED",
+        "PAYMENT_FAILED",
       ],
       payment_status: [
         "PENDING",

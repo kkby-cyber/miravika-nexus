@@ -30,6 +30,7 @@ import { Route as ApiPublicCollectionsRouteImport } from './routes/api/public/co
 import { Route as ApiPublicProductsRouteImport } from './routes/api/public/products'
 import { Route as ApiPublicPaymentsVerifyRouteImport } from './routes/api/public/payments.verify'
 import { Route as ApiPublicProductsSlugRouteImport } from './routes/api/public/products.$slug'
+import { Route as ApiPublicShippingQuoteRouteImport } from './routes/api/public/shipping.quote'
 import { Route as ApiPublicWebhooksRazorpayRouteImport } from './routes/api/public/webhooks.razorpay'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
@@ -139,6 +140,11 @@ const ApiPublicProductsSlugRoute = ApiPublicProductsSlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => ApiPublicProductsRoute,
 } as any)
+const ApiPublicShippingQuoteRoute = ApiPublicShippingQuoteRouteImport.update({
+  id: '/api/public/shipping/quote',
+  path: '/api/public/shipping/quote',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWebhooksRazorpayRoute =
   ApiPublicWebhooksRazorpayRouteImport.update({
     id: '/api/public/webhooks/razorpay',
@@ -178,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/admin/staff/': typeof AdminStaffIndexRoute
   '/api/public/payments/verify': typeof ApiPublicPaymentsVerifyRoute
   '/api/public/products/$slug': typeof ApiPublicProductsSlugRoute
+  '/api/public/shipping/quote': typeof ApiPublicShippingQuoteRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -203,6 +210,7 @@ export interface FileRoutesByTo {
   '/admin/staff': typeof AdminStaffIndexRoute
   '/api/public/payments/verify': typeof ApiPublicPaymentsVerifyRoute
   '/api/public/products/$slug': typeof ApiPublicProductsSlugRoute
+  '/api/public/shipping/quote': typeof ApiPublicShippingQuoteRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -230,6 +238,7 @@ export interface FileRoutesById {
   '/admin/staff/': typeof AdminStaffIndexRoute
   '/api/public/payments/verify': typeof ApiPublicPaymentsVerifyRoute
   '/api/public/products/$slug': typeof ApiPublicProductsSlugRoute
+  '/api/public/shipping/quote': typeof ApiPublicShippingQuoteRoute
   '/api/public/webhooks/razorpay': typeof ApiPublicWebhooksRazorpayRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -258,6 +267,7 @@ export interface FileRouteTypes {
     | '/admin/staff/'
     | '/api/public/payments/verify'
     | '/api/public/products/$slug'
+    | '/api/public/shipping/quote'
     | '/api/public/webhooks/razorpay'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -283,6 +293,7 @@ export interface FileRouteTypes {
     | '/admin/staff'
     | '/api/public/payments/verify'
     | '/api/public/products/$slug'
+    | '/api/public/shipping/quote'
     | '/api/public/webhooks/razorpay'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -309,6 +320,7 @@ export interface FileRouteTypes {
     | '/admin/staff/'
     | '/api/public/payments/verify'
     | '/api/public/products/$slug'
+    | '/api/public/shipping/quote'
     | '/api/public/webhooks/razorpay'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -322,6 +334,7 @@ export interface RootRouteChildren {
   ApiPublicCollectionsRoute: typeof ApiPublicCollectionsRoute
   ApiPublicProductsRoute: typeof ApiPublicProductsRouteWithChildren
   ApiPublicPaymentsVerifyRoute: typeof ApiPublicPaymentsVerifyRoute
+  ApiPublicShippingQuoteRoute: typeof ApiPublicShippingQuoteRoute
   ApiPublicWebhooksRazorpayRoute: typeof ApiPublicWebhooksRazorpayRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
@@ -476,6 +489,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicProductsSlugRouteImport
       parentRoute: typeof ApiPublicProductsRoute
     }
+    '/api/public/shipping/quote': {
+      id: '/api/public/shipping/quote'
+      path: '/api/public/shipping/quote'
+      fullPath: '/api/public/shipping/quote'
+      preLoaderRoute: typeof ApiPublicShippingQuoteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhooks/razorpay': {
       id: '/api/public/webhooks/razorpay'
       path: '/api/public/webhooks/razorpay'
@@ -555,6 +575,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCollectionsRoute: ApiPublicCollectionsRoute,
   ApiPublicProductsRoute: ApiPublicProductsRouteWithChildren,
   ApiPublicPaymentsVerifyRoute: ApiPublicPaymentsVerifyRoute,
+  ApiPublicShippingQuoteRoute: ApiPublicShippingQuoteRoute,
   ApiPublicWebhooksRazorpayRoute: ApiPublicWebhooksRazorpayRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,

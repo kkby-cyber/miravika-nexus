@@ -64,6 +64,14 @@ export const Route = createFileRoute("/api/public/payments/verify")({
         });
 
         if (!result.ok) return fail("ORDER_FAILED", "Order could not be confirmed.", 500);
+
+        // Kick off fulfilment; failures are recorded on the order, not surfaced.
+        try {
+          const { createShipmentForOrder } = await import("@/lib/shipment.server");
+          await createShipmentForOrder(supabaseAdmin, order.id);
+        } catch {
+          logEvent("error", "shipment_autocreate_failed", { order_id: order.id });
+        }
         return ok({ order_number: order.order_number, status: "PAID", duplicate: result.duplicate });
       },
     },

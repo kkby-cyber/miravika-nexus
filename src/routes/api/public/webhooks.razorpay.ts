@@ -97,6 +97,13 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
                 method: paymentEntity?.method ?? null,
                 signatureVerified: true,
               });
+              // Fulfilment is best-effort: a courier outage must not fail the webhook.
+              try {
+                const { createShipmentForOrder } = await import("@/lib/shipment.server");
+                await createShipmentForOrder(supabaseAdmin, order.id);
+              } catch (e) {
+                logEvent("error", "shipment_autocreate_failed", { order_id: order.id });
+              }
               break;
             }
             case "payment.failed": {

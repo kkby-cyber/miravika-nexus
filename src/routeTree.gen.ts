@@ -28,6 +28,7 @@ import { Route as AdminStaffPermissionsRouteImport } from './routes/admin/staff/
 import { Route as ApiPublicCheckoutRouteImport } from './routes/api/public/checkout'
 import { Route as ApiPublicCollectionsRouteImport } from './routes/api/public/collections'
 import { Route as ApiPublicProductsRouteImport } from './routes/api/public/products'
+import { Route as ApiPublicOrdersTrackRouteImport } from './routes/api/public/orders.track'
 import { Route as ApiPublicPaymentsVerifyRouteImport } from './routes/api/public/payments.verify'
 import { Route as ApiPublicProductsSlugRouteImport } from './routes/api/public/products.$slug'
 import { Route as ApiPublicShippingQuoteRouteImport } from './routes/api/public/shipping.quote'
@@ -131,6 +132,11 @@ const ApiPublicProductsRoute = ApiPublicProductsRouteImport.update({
   path: '/api/public/products',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicOrdersTrackRoute = ApiPublicOrdersTrackRouteImport.update({
+  id: '/api/public/orders/track',
+  path: '/api/public/orders/track',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPaymentsVerifyRoute = ApiPublicPaymentsVerifyRouteImport.update({
   id: '/api/public/payments/verify',
   path: '/api/public/payments/verify',
@@ -189,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/api/public/collections': typeof ApiPublicCollectionsRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
   '/admin/staff/': typeof AdminStaffIndexRoute
+  '/api/public/orders/track': typeof ApiPublicOrdersTrackRoute
   '/api/public/payments/verify': typeof ApiPublicPaymentsVerifyRoute
   '/api/public/products/$slug': typeof ApiPublicProductsSlugRoute
   '/api/public/shipping/quote': typeof ApiPublicShippingQuoteRoute
@@ -216,6 +223,7 @@ export interface FileRoutesByTo {
   '/api/public/collections': typeof ApiPublicCollectionsRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
   '/admin/staff': typeof AdminStaffIndexRoute
+  '/api/public/orders/track': typeof ApiPublicOrdersTrackRoute
   '/api/public/payments/verify': typeof ApiPublicPaymentsVerifyRoute
   '/api/public/products/$slug': typeof ApiPublicProductsSlugRoute
   '/api/public/shipping/quote': typeof ApiPublicShippingQuoteRoute
@@ -245,6 +253,7 @@ export interface FileRoutesById {
   '/api/public/collections': typeof ApiPublicCollectionsRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
   '/admin/staff/': typeof AdminStaffIndexRoute
+  '/api/public/orders/track': typeof ApiPublicOrdersTrackRoute
   '/api/public/payments/verify': typeof ApiPublicPaymentsVerifyRoute
   '/api/public/products/$slug': typeof ApiPublicProductsSlugRoute
   '/api/public/shipping/quote': typeof ApiPublicShippingQuoteRoute
@@ -275,6 +284,7 @@ export interface FileRouteTypes {
     | '/api/public/collections'
     | '/api/public/products'
     | '/admin/staff/'
+    | '/api/public/orders/track'
     | '/api/public/payments/verify'
     | '/api/public/products/$slug'
     | '/api/public/shipping/quote'
@@ -302,6 +312,7 @@ export interface FileRouteTypes {
     | '/api/public/collections'
     | '/api/public/products'
     | '/admin/staff'
+    | '/api/public/orders/track'
     | '/api/public/payments/verify'
     | '/api/public/products/$slug'
     | '/api/public/shipping/quote'
@@ -330,6 +341,7 @@ export interface FileRouteTypes {
     | '/api/public/collections'
     | '/api/public/products'
     | '/admin/staff/'
+    | '/api/public/orders/track'
     | '/api/public/payments/verify'
     | '/api/public/products/$slug'
     | '/api/public/shipping/quote'
@@ -346,6 +358,7 @@ export interface RootRouteChildren {
   ApiPublicCheckoutRoute: typeof ApiPublicCheckoutRoute
   ApiPublicCollectionsRoute: typeof ApiPublicCollectionsRoute
   ApiPublicProductsRoute: typeof ApiPublicProductsRouteWithChildren
+  ApiPublicOrdersTrackRoute: typeof ApiPublicOrdersTrackRoute
   ApiPublicPaymentsVerifyRoute: typeof ApiPublicPaymentsVerifyRoute
   ApiPublicShippingQuoteRoute: typeof ApiPublicShippingQuoteRoute
   ApiPublicWebhooksRazorpayRoute: typeof ApiPublicWebhooksRazorpayRoute
@@ -489,6 +502,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicProductsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/orders/track': {
+      id: '/api/public/orders/track'
+      path: '/api/public/orders/track'
+      fullPath: '/api/public/orders/track'
+      preLoaderRoute: typeof ApiPublicOrdersTrackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/payments/verify': {
       id: '/api/public/payments/verify'
       path: '/api/public/payments/verify'
@@ -595,6 +615,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCheckoutRoute: ApiPublicCheckoutRoute,
   ApiPublicCollectionsRoute: ApiPublicCollectionsRoute,
   ApiPublicProductsRoute: ApiPublicProductsRouteWithChildren,
+  ApiPublicOrdersTrackRoute: ApiPublicOrdersTrackRoute,
   ApiPublicPaymentsVerifyRoute: ApiPublicPaymentsVerifyRoute,
   ApiPublicShippingQuoteRoute: ApiPublicShippingQuoteRoute,
   ApiPublicWebhooksRazorpayRoute: ApiPublicWebhooksRazorpayRoute,

@@ -99,7 +99,7 @@ export async function adminCreateShipment(ctx: Ctx, orderId: string, courierId?:
   await requirePermission(ctx, "orders.fulfill");
   const res = await createShipmentForOrder(await admin(), orderId, courierId ?? null);
   await recordActivity(ctx, {
-    action: res.ok ? "shipment.create" : "shipment.create_failed",
+    action: res.ok ? "SHIPMENT_CREATED" : "SHIPMENT_CREATE_FAILED",
     entityType: "order",
     entityId: orderId,
     metadata: res.ok ? {} : { error: (res as Json).error },
@@ -116,7 +116,7 @@ export async function adminCancelShipment(ctx: Ctx, orderId: string) {
   await requirePermission(ctx, "orders.fulfill");
   const res = await cancelOrderShipment(await admin(), orderId);
   await recordActivity(ctx, {
-    action: res.ok ? "shipment.cancel" : "shipment.cancel_failed",
+    action: res.ok ? "SHIPMENT_CANCELLED" : "SHIPMENT_CANCEL_FAILED",
     entityType: "order",
     entityId: orderId,
   });

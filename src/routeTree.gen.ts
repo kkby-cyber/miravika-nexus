@@ -22,12 +22,21 @@ import { Route as AdminInventoryRouteImport } from './routes/admin/inventory'
 import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 import { Route as AdminProductsRouteImport } from './routes/admin/products'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AdminStaffIndexRouteImport } from './routes/admin/staff/index'
 import { Route as AdminStaffStaffIdRouteImport } from './routes/admin/staff/$staffId'
 import { Route as AdminStaffPermissionsRouteImport } from './routes/admin/staff/permissions'
+import { Route as ApiPublicAddressesRouteImport } from './routes/api/public/addresses'
+import { Route as ApiPublicCartRouteImport } from './routes/api/public/cart'
 import { Route as ApiPublicCheckoutRouteImport } from './routes/api/public/checkout'
 import { Route as ApiPublicCollectionsRouteImport } from './routes/api/public/collections'
+import { Route as ApiPublicCustomerRouteImport } from './routes/api/public/customer'
+import { Route as ApiPublicCustomerOrdersRouteImport } from './routes/api/public/customer-orders'
+import { Route as ApiPublicNewsletterRouteImport } from './routes/api/public/newsletter'
 import { Route as ApiPublicProductsRouteImport } from './routes/api/public/products'
+import { Route as ApiPublicReviewsRouteImport } from './routes/api/public/reviews'
+import { Route as ApiPublicWishlistRouteImport } from './routes/api/public/wishlist'
+import { Route as ApiPublicAddressesAddressIdRouteImport } from './routes/api/public/addresses.$addressId'
 import { Route as ApiPublicOrdersTrackRouteImport } from './routes/api/public/orders.track'
 import { Route as ApiPublicPaymentsVerifyRouteImport } from './routes/api/public/payments.verify'
 import { Route as ApiPublicProductsSlugRouteImport } from './routes/api/public/products.$slug'
@@ -102,6 +111,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminStaffIndexRoute = AdminStaffIndexRouteImport.update({
   id: '/staff/',
   path: '/staff/',
@@ -117,6 +131,16 @@ const AdminStaffPermissionsRoute = AdminStaffPermissionsRouteImport.update({
   path: '/staff/permissions',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const ApiPublicAddressesRoute = ApiPublicAddressesRouteImport.update({
+  id: '/api/public/addresses',
+  path: '/api/public/addresses',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicCartRoute = ApiPublicCartRouteImport.update({
+  id: '/api/public/cart',
+  path: '/api/public/cart',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCheckoutRoute = ApiPublicCheckoutRouteImport.update({
   id: '/api/public/checkout',
   path: '/api/public/checkout',
@@ -127,11 +151,42 @@ const ApiPublicCollectionsRoute = ApiPublicCollectionsRouteImport.update({
   path: '/api/public/collections',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCustomerRoute = ApiPublicCustomerRouteImport.update({
+  id: '/api/public/customer',
+  path: '/api/public/customer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicCustomerOrdersRoute = ApiPublicCustomerOrdersRouteImport.update({
+  id: '/api/public/customer-orders',
+  path: '/api/public/customer-orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicNewsletterRoute = ApiPublicNewsletterRouteImport.update({
+  id: '/api/public/newsletter',
+  path: '/api/public/newsletter',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicProductsRoute = ApiPublicProductsRouteImport.update({
   id: '/api/public/products',
   path: '/api/public/products',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicReviewsRoute = ApiPublicReviewsRouteImport.update({
+  id: '/api/public/reviews',
+  path: '/api/public/reviews',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWishlistRoute = ApiPublicWishlistRouteImport.update({
+  id: '/api/public/wishlist',
+  path: '/api/public/wishlist',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicAddressesAddressIdRoute =
+  ApiPublicAddressesAddressIdRouteImport.update({
+    id: '/$addressId',
+    path: '/$addressId',
+    getParentRoute: () => ApiPublicAddressesRoute,
+  } as any)
 const ApiPublicOrdersTrackRoute = ApiPublicOrdersTrackRouteImport.update({
   id: '/api/public/orders/track',
   path: '/api/public/orders/track',
@@ -188,13 +243,22 @@ export interface FileRoutesByFullPath {
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/api/health': typeof ApiHealthRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/staff/$staffId': typeof AdminStaffStaffIdRoute
   '/admin/staff/permissions': typeof AdminStaffPermissionsRoute
+  '/api/public/addresses': typeof ApiPublicAddressesRouteWithChildren
+  '/api/public/cart': typeof ApiPublicCartRoute
   '/api/public/checkout': typeof ApiPublicCheckoutRoute
   '/api/public/collections': typeof ApiPublicCollectionsRoute
+  '/api/public/customer': typeof ApiPublicCustomerRoute
+  '/api/public/customer-orders': typeof ApiPublicCustomerOrdersRoute
+  '/api/public/newsletter': typeof ApiPublicNewsletterRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
+  '/api/public/reviews': typeof ApiPublicReviewsRoute
+  '/api/public/wishlist': typeof ApiPublicWishlistRoute
   '/admin/staff/': typeof AdminStaffIndexRoute
+  '/api/public/addresses/$addressId': typeof ApiPublicAddressesAddressIdRoute
   '/api/public/orders/track': typeof ApiPublicOrdersTrackRoute
   '/api/public/payments/verify': typeof ApiPublicPaymentsVerifyRoute
   '/api/public/products/$slug': typeof ApiPublicProductsSlugRoute
@@ -216,13 +280,22 @@ export interface FileRoutesByTo {
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/api/health': typeof ApiHealthRoute
   '/admin': typeof AdminIndexRoute
   '/admin/staff/$staffId': typeof AdminStaffStaffIdRoute
   '/admin/staff/permissions': typeof AdminStaffPermissionsRoute
+  '/api/public/addresses': typeof ApiPublicAddressesRouteWithChildren
+  '/api/public/cart': typeof ApiPublicCartRoute
   '/api/public/checkout': typeof ApiPublicCheckoutRoute
   '/api/public/collections': typeof ApiPublicCollectionsRoute
+  '/api/public/customer': typeof ApiPublicCustomerRoute
+  '/api/public/customer-orders': typeof ApiPublicCustomerOrdersRoute
+  '/api/public/newsletter': typeof ApiPublicNewsletterRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
+  '/api/public/reviews': typeof ApiPublicReviewsRoute
+  '/api/public/wishlist': typeof ApiPublicWishlistRoute
   '/admin/staff': typeof AdminStaffIndexRoute
+  '/api/public/addresses/$addressId': typeof ApiPublicAddressesAddressIdRoute
   '/api/public/orders/track': typeof ApiPublicOrdersTrackRoute
   '/api/public/payments/verify': typeof ApiPublicPaymentsVerifyRoute
   '/api/public/products/$slug': typeof ApiPublicProductsSlugRoute
@@ -246,13 +319,22 @@ export interface FileRoutesById {
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/api/health': typeof ApiHealthRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/staff/$staffId': typeof AdminStaffStaffIdRoute
   '/admin/staff/permissions': typeof AdminStaffPermissionsRoute
+  '/api/public/addresses': typeof ApiPublicAddressesRouteWithChildren
+  '/api/public/cart': typeof ApiPublicCartRoute
   '/api/public/checkout': typeof ApiPublicCheckoutRoute
   '/api/public/collections': typeof ApiPublicCollectionsRoute
+  '/api/public/customer': typeof ApiPublicCustomerRoute
+  '/api/public/customer-orders': typeof ApiPublicCustomerOrdersRoute
+  '/api/public/newsletter': typeof ApiPublicNewsletterRoute
   '/api/public/products': typeof ApiPublicProductsRouteWithChildren
+  '/api/public/reviews': typeof ApiPublicReviewsRoute
+  '/api/public/wishlist': typeof ApiPublicWishlistRoute
   '/admin/staff/': typeof AdminStaffIndexRoute
+  '/api/public/addresses/$addressId': typeof ApiPublicAddressesAddressIdRoute
   '/api/public/orders/track': typeof ApiPublicOrdersTrackRoute
   '/api/public/payments/verify': typeof ApiPublicPaymentsVerifyRoute
   '/api/public/products/$slug': typeof ApiPublicProductsSlugRoute
@@ -277,13 +359,22 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/products'
     | '/admin/settings'
+    | '/api/health'
     | '/admin/'
     | '/admin/staff/$staffId'
     | '/admin/staff/permissions'
+    | '/api/public/addresses'
+    | '/api/public/cart'
     | '/api/public/checkout'
     | '/api/public/collections'
+    | '/api/public/customer'
+    | '/api/public/customer-orders'
+    | '/api/public/newsletter'
     | '/api/public/products'
+    | '/api/public/reviews'
+    | '/api/public/wishlist'
     | '/admin/staff/'
+    | '/api/public/addresses/$addressId'
     | '/api/public/orders/track'
     | '/api/public/payments/verify'
     | '/api/public/products/$slug'
@@ -305,13 +396,22 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/products'
     | '/admin/settings'
+    | '/api/health'
     | '/admin'
     | '/admin/staff/$staffId'
     | '/admin/staff/permissions'
+    | '/api/public/addresses'
+    | '/api/public/cart'
     | '/api/public/checkout'
     | '/api/public/collections'
+    | '/api/public/customer'
+    | '/api/public/customer-orders'
+    | '/api/public/newsletter'
     | '/api/public/products'
+    | '/api/public/reviews'
+    | '/api/public/wishlist'
     | '/admin/staff'
+    | '/api/public/addresses/$addressId'
     | '/api/public/orders/track'
     | '/api/public/payments/verify'
     | '/api/public/products/$slug'
@@ -334,13 +434,22 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/products'
     | '/admin/settings'
+    | '/api/health'
     | '/admin/'
     | '/admin/staff/$staffId'
     | '/admin/staff/permissions'
+    | '/api/public/addresses'
+    | '/api/public/cart'
     | '/api/public/checkout'
     | '/api/public/collections'
+    | '/api/public/customer'
+    | '/api/public/customer-orders'
+    | '/api/public/newsletter'
     | '/api/public/products'
+    | '/api/public/reviews'
+    | '/api/public/wishlist'
     | '/admin/staff/'
+    | '/api/public/addresses/$addressId'
     | '/api/public/orders/track'
     | '/api/public/payments/verify'
     | '/api/public/products/$slug'
@@ -355,9 +464,17 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiHealthRoute: typeof ApiHealthRoute
+  ApiPublicAddressesRoute: typeof ApiPublicAddressesRouteWithChildren
+  ApiPublicCartRoute: typeof ApiPublicCartRoute
   ApiPublicCheckoutRoute: typeof ApiPublicCheckoutRoute
   ApiPublicCollectionsRoute: typeof ApiPublicCollectionsRoute
+  ApiPublicCustomerRoute: typeof ApiPublicCustomerRoute
+  ApiPublicCustomerOrdersRoute: typeof ApiPublicCustomerOrdersRoute
+  ApiPublicNewsletterRoute: typeof ApiPublicNewsletterRoute
   ApiPublicProductsRoute: typeof ApiPublicProductsRouteWithChildren
+  ApiPublicReviewsRoute: typeof ApiPublicReviewsRoute
+  ApiPublicWishlistRoute: typeof ApiPublicWishlistRoute
   ApiPublicOrdersTrackRoute: typeof ApiPublicOrdersTrackRoute
   ApiPublicPaymentsVerifyRoute: typeof ApiPublicPaymentsVerifyRoute
   ApiPublicShippingQuoteRoute: typeof ApiPublicShippingQuoteRoute
@@ -460,6 +577,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/staff/': {
       id: '/admin/staff/'
       path: '/staff'
@@ -481,6 +605,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminStaffPermissionsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/api/public/addresses': {
+      id: '/api/public/addresses'
+      path: '/api/public/addresses'
+      fullPath: '/api/public/addresses'
+      preLoaderRoute: typeof ApiPublicAddressesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cart': {
+      id: '/api/public/cart'
+      path: '/api/public/cart'
+      fullPath: '/api/public/cart'
+      preLoaderRoute: typeof ApiPublicCartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/checkout': {
       id: '/api/public/checkout'
       path: '/api/public/checkout'
@@ -495,12 +633,54 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCollectionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/customer': {
+      id: '/api/public/customer'
+      path: '/api/public/customer'
+      fullPath: '/api/public/customer'
+      preLoaderRoute: typeof ApiPublicCustomerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/customer-orders': {
+      id: '/api/public/customer-orders'
+      path: '/api/public/customer-orders'
+      fullPath: '/api/public/customer-orders'
+      preLoaderRoute: typeof ApiPublicCustomerOrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/newsletter': {
+      id: '/api/public/newsletter'
+      path: '/api/public/newsletter'
+      fullPath: '/api/public/newsletter'
+      preLoaderRoute: typeof ApiPublicNewsletterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/products': {
       id: '/api/public/products'
       path: '/api/public/products'
       fullPath: '/api/public/products'
       preLoaderRoute: typeof ApiPublicProductsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/public/reviews': {
+      id: '/api/public/reviews'
+      path: '/api/public/reviews'
+      fullPath: '/api/public/reviews'
+      preLoaderRoute: typeof ApiPublicReviewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/wishlist': {
+      id: '/api/public/wishlist'
+      path: '/api/public/wishlist'
+      fullPath: '/api/public/wishlist'
+      preLoaderRoute: typeof ApiPublicWishlistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/addresses/$addressId': {
+      id: '/api/public/addresses/$addressId'
+      path: '/$addressId'
+      fullPath: '/api/public/addresses/$addressId'
+      preLoaderRoute: typeof ApiPublicAddressesAddressIdRouteImport
+      parentRoute: typeof ApiPublicAddressesRoute
     }
     '/api/public/orders/track': {
       id: '/api/public/orders/track'
@@ -597,6 +777,17 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
   AdminRouteRouteChildren,
 )
 
+interface ApiPublicAddressesRouteChildren {
+  ApiPublicAddressesAddressIdRoute: typeof ApiPublicAddressesAddressIdRoute
+}
+
+const ApiPublicAddressesRouteChildren: ApiPublicAddressesRouteChildren = {
+  ApiPublicAddressesAddressIdRoute: ApiPublicAddressesAddressIdRoute,
+}
+
+const ApiPublicAddressesRouteWithChildren =
+  ApiPublicAddressesRoute._addFileChildren(ApiPublicAddressesRouteChildren)
+
 interface ApiPublicProductsRouteChildren {
   ApiPublicProductsSlugRoute: typeof ApiPublicProductsSlugRoute
 }
@@ -612,9 +803,17 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRouteRoute: AdminRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiHealthRoute: ApiHealthRoute,
+  ApiPublicAddressesRoute: ApiPublicAddressesRouteWithChildren,
+  ApiPublicCartRoute: ApiPublicCartRoute,
   ApiPublicCheckoutRoute: ApiPublicCheckoutRoute,
   ApiPublicCollectionsRoute: ApiPublicCollectionsRoute,
+  ApiPublicCustomerRoute: ApiPublicCustomerRoute,
+  ApiPublicCustomerOrdersRoute: ApiPublicCustomerOrdersRoute,
+  ApiPublicNewsletterRoute: ApiPublicNewsletterRoute,
   ApiPublicProductsRoute: ApiPublicProductsRouteWithChildren,
+  ApiPublicReviewsRoute: ApiPublicReviewsRoute,
+  ApiPublicWishlistRoute: ApiPublicWishlistRoute,
   ApiPublicOrdersTrackRoute: ApiPublicOrdersTrackRoute,
   ApiPublicPaymentsVerifyRoute: ApiPublicPaymentsVerifyRoute,
   ApiPublicShippingQuoteRoute: ApiPublicShippingQuoteRoute,

@@ -39,16 +39,27 @@ export const SHIPROCKET_NOT_CONFIGURED = "SHIPROCKET_NOT_CONFIGURED" as const;
 type TokenResult = { token: string } | { error: string };
 
 async function login(config: ShiprocketConfig): Promise<TokenResult> {
-  const res = await fetch(`${BASE}/auth/login`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: config.email, password: config.password }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/auth/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: config.email, password: config.password }),
+    });
+  } catch {
+    logEvent("error", "shiprocket_login_unavailable", {});
+    return { error: "SHIPROCKET_NETWORK_ERROR" };
+  }
   if (!res.ok) {
     logEvent("error", "shiprocket_login_failed", { status: res.status });
     return { error: "SHIPROCKET_AUTH_FAILED" };
   }
-  const body = (await res.json()) as { token?: string };
+  let body: { token?: string };
+  try {
+    body = (await res.json()) as { token?: string };
+  } catch {
+    return { error: "SHIPROCKET_AUTH_FAILED" };
+  }
   if (!body.token) return { error: "SHIPROCKET_AUTH_FAILED" };
   return { token: body.token };
 }
@@ -59,11 +70,12 @@ export async function getToken(admin: Admin, force = false): Promise<TokenResult
   if (!config) return { error: SHIPROCKET_NOT_CONFIGURED };
 
   if (!force) {
-    const { data } = await admin
+    const { data, error } = await admin
       .from("site_settings")
       .select("value")
       .eq("key", "shiprocket_token")
       .maybeSingle();
+    if (error) return { error: "SHIPROCKET_TOKEN_LOOKUP_FAILED" };
     const cached = data?.value as { token?: string; expires_at?: string } | undefined;
     if (cached?.token && cached.expires_at && new Date(cached.expires_at) > new Date()) {
       return { token: cached.token };
@@ -75,7 +87,7 @@ export async function getToken(admin: Admin, force = false): Promise<TokenResult
 
   // Shiprocket tokens live 10 days; refresh a day early.
   const expiresAt = new Date(Date.now() + 9 * 24 * 60 * 60 * 1000).toISOString();
-  await admin.from("site_settings").upsert(
+  const { error } = await admin.from("site_settings").upsert(
     {
       key: "shiprocket_token",
       value: { token: fresh.token, expires_at: expiresAt },
@@ -84,6 +96,10 @@ export async function getToken(admin: Admin, force = false): Promise<TokenResult
     },
     { onConflict: "key" },
   );
+  if (error) {
+    logEvent("error", "shiprocket_token_cache_failed", {});
+    return { error: "SHIPROCKET_TOKEN_CACHE_FAILED" };
+  }
   return fresh;
 }
 
@@ -99,17 +115,29 @@ export async function srFetch<T = Json>(
   const auth = await getToken(admin);
   if ("error" in auth) return { ok: false, error: auth.error };
 
-  const res = await fetch(`${BASE}${path}`, {
-    method: init.method ?? "GET",
-    headers: {
-      authorization: `Bearer ${auth.token}`,
-      "content-type": "application/json",
-    },
-    ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method: init.method ?? "GET",
+      headers: {
+        authorization: `Bearer ${auth.token}`,
+        "content-type": "application/json",
+      },
+      ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
+    });
+  } catch {
+    logEvent("error", "shiprocket_network_error", { path });
+    return { ok: false, error: "SHIPROCKET_NETWORK_ERROR" };
+  }
 
   if (res.status === 401 && retry) {
-    await getToken(admin, true);
+    const refreshed = await getToken(admin, true);
+    if ("error" in refreshed) return { ok: false, error: refreshed.error };
+    return srFetch<T>(admin, path, init, false);
+  }
+
+  if ((res.status === 429 || res.status >= 500) && retry) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
     return srFetch<T>(admin, path, init, false);
   }
 
@@ -176,7 +204,13 @@ export type ShiprocketOrderInput = {
     email: string;
     phone: string;
   };
-  items: Array<{ name: string; sku: string; units: number; sellingPrice: number; hsn?: string | null }>;
+  items: Array<{
+    name: string;
+    sku: string;
+    units: number;
+    sellingPrice: number;
+    hsn?: string | null;
+  }>;
   subTotal: number;
   weightKg: number;
   dimensionsCm: { length: number; breadth: number; height: number };

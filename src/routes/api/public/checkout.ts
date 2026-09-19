@@ -1,8 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { ok, fail, preflight, logEvent, requestId } from "@/lib/api-response";
-import { computeTotals, toPaise, type PriceLine } from "@/lib/pricing";
+import { toPaise } from "@/lib/pricing";
 import { createRazorpayOrder } from "@/lib/razorpay.server";
+import { enforceRateLimit } from "@/lib/rate-limit.server";
+import { quote, userFromRequest } from "@/lib/store.server";
+import { auditCommerceMutation } from "@/lib/commerce-audit.server";
 
 const addressSchema = z.object({
   full_name: z.string().min(2).max(120),
@@ -22,13 +25,20 @@ const bodySchema = z.object({
   items: z
     .array(z.object({ sku: z.string().min(1).max(64), quantity: z.number().int().min(1).max(20) }))
     .min(1)
-    .max(50),
+    .max(50)
+    .superRefine((items, context) => {
+      if (new Set(items.map((item) => item.sku)).size !== items.length) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Duplicate SKUs are not allowed.",
+        });
+      }
+    }),
   shipping_address: addressSchema,
   billing_address: addressSchema.optional().nullable(),
   billing_same_as_shipping: z.boolean().default(true),
   shipping_method_id: z.string().uuid().optional().nullable(),
   coupon_code: z.string().max(40).optional().nullable(),
-  user_id: z.string().uuid().optional().nullable(),
 });
 
 export const Route = createFileRoute("/api/public/checkout")({
@@ -36,7 +46,12 @@ export const Route = createFileRoute("/api/public/checkout")({
     handlers: {
       OPTIONS: async () => preflight(),
       POST: async ({ request }) => {
-        const rid = requestId();
+        const rid = requestId(request);
+        const rateLimit = await enforceRateLimit(request, "checkout", 10);
+        if (rateLimit.error)
+          return fail("RATE_LIMIT_UNAVAILABLE", "Checkout is temporarily unavailable.", 503);
+        if (!rateLimit.allowed)
+          return fail("RATE_LIMITED", "Too many checkout attempts. Please try again later.", 429);
         let parsed;
         try {
           parsed = bodySchema.parse(await request.json());
@@ -45,107 +60,49 @@ export const Route = createFileRoute("/api/public/checkout")({
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const authorization = request.headers.get("authorization");
+        const customer = await userFromRequest(request);
+        if (authorization && !customer)
+          return fail("UNAUTHORIZED", "The supplied session is invalid.", 401);
 
-        // 1. Re-fetch authoritative prices + stock from the database.
-        const skus = parsed.items.map((i) => i.sku);
-        const { data: variants } = await supabaseAdmin
-          .from("product_variants")
-          .select("id, product_id, sku, title, price, status")
-          .in("sku", skus);
-        const { data: products } = await supabaseAdmin
-          .from("products")
-          .select("id, sku, title, price, tax_rate, tax_inclusive, status, deleted_at")
-          .in("sku", skus);
-        const { data: inventory } = await supabaseAdmin
-          .from("inventory")
-          .select("sku, available_quantity")
-          .in("sku", skus);
-
-        const productBySku = new Map((products ?? []).map((p) => [p.sku, p]));
-        const variantBySku = new Map((variants ?? []).map((v) => [v.sku, v]));
-        const productById = new Map((products ?? []).map((p) => [p.id, p]));
-        const stockBySku = new Map((inventory ?? []).map((i) => [i.sku, i.available_quantity]));
-
-        const lines: PriceLine[] = [];
-        for (const item of parsed.items) {
-          const variant = variantBySku.get(item.sku);
-          const product = variant
-            ? productById.get(variant.product_id)
-            : productBySku.get(item.sku);
-          if (!product || product.status !== "ACTIVE" || product.deleted_at) {
-            return fail("PRODUCT_UNAVAILABLE", `${item.sku} is not available for purchase.`, 409);
-          }
-          const available = stockBySku.get(item.sku) ?? 0;
-          if (available < item.quantity) {
-            return fail("OUT_OF_STOCK", "This product is no longer available in that quantity.", 409);
-          }
-          lines.push({
-            sku: item.sku,
-            title: variant ? `${product.title} — ${variant.title}` : product.title,
-            productId: product.id,
-            variantId: variant?.id ?? null,
-            quantity: item.quantity,
-            unitPrice: Number(variant?.price ?? product.price),
-            taxRate: Number(product.tax_rate ?? 0),
-            taxInclusive: product.tax_inclusive ?? true,
+        let calculated;
+        try {
+          calculated = await quote(supabaseAdmin, {
+            items: parsed.items,
+            userId: customer?.id ?? null,
+            postalCode: parsed.shipping_address.postal_code,
+            ...(parsed.coupon_code !== undefined ? { couponCode: parsed.coupon_code } : {}),
+            ...(parsed.shipping_method_id !== undefined
+              ? { shippingMethodId: parsed.shipping_method_id }
+              : {}),
           });
+        } catch {
+          logEvent("error", "checkout_quote_failed", { rid });
+          return fail("CHECKOUT_UNAVAILABLE", "Checkout is temporarily unavailable.", 503);
         }
-
-        // 2. Coupon (server-side validation only).
-        let coupon = null;
-        if (parsed.coupon_code) {
-          const { data: c } = await supabaseAdmin
-            .from("coupons")
-            .select("*")
-            .eq("code", parsed.coupon_code.toUpperCase())
-            .eq("is_active", true)
-            .maybeSingle();
-          const now = new Date();
-          const valid =
-            c &&
-            (!c.starts_at || new Date(c.starts_at) <= now) &&
-            (!c.ends_at || new Date(c.ends_at) >= now) &&
-            (c.usage_limit == null || c.used_count < c.usage_limit);
-          if (!valid) return fail("INVALID_COUPON", "This coupon code cannot be used.", 422);
-          coupon = {
-            id: c!.id,
-            code: c!.code,
-            discount_type: c!.discount_type as "PERCENTAGE" | "FIXED",
-            discount_value: Number(c!.discount_value),
-            min_order_value: Number(c!.min_order_value),
-            max_discount: c!.max_discount == null ? null : Number(c!.max_discount),
-          };
+        if (!calculated.ok) {
+          return fail(
+            calculated.code,
+            calculated.message,
+            calculated.code === "STORE_UNAVAILABLE" ? 503 : 409,
+          );
         }
-
-        // 3. Shipping method from configuration, never from the browser.
-        let shippingQuery = supabaseAdmin
-          .from("shipping_methods")
-          .select("id, flat_rate, free_shipping_threshold")
-          .eq("is_active", true);
-        if (parsed.shipping_method_id) shippingQuery = shippingQuery.eq("id", parsed.shipping_method_id);
-        const { data: methods } = await shippingQuery.order("position").limit(1);
-        const shipping = methods?.[0]
-          ? {
-              id: methods[0].id,
-              flat_rate: Number(methods[0].flat_rate),
-              free_shipping_threshold:
-                methods[0].free_shipping_threshold == null
-                  ? null
-                  : Number(methods[0].free_shipping_threshold),
-            }
-          : null;
-
-        const totals = computeTotals(lines, coupon, shipping);
+        const { totals, coupon, shipping } = calculated;
 
         // 4. Create the internal order first.
-        const { data: numberRow } = await supabaseAdmin.rpc("next_order_number");
+        const { data: numberRow, error: numberError } =
+          await supabaseAdmin.rpc("next_order_number");
+        if (numberError) {
+          logEvent("error", "order_number_generation_failed", { rid });
+          return fail("ORDER_FAILED", "We could not start your order. Please try again.", 500);
+        }
         const orderNumber = (numberRow as unknown as string) ?? `MIR-${Date.now()}`;
 
         const { data: order, error: orderError } = await supabaseAdmin
           .from("orders")
           .insert({
             order_number: orderNumber,
-            user_id: parsed.user_id ?? null,
+            user_id: customer?.id ?? null,
             email: parsed.email,
             phone: parsed.phone,
             full_name: parsed.full_name,
@@ -170,8 +127,14 @@ export const Route = createFileRoute("/api/public/checkout")({
           logEvent("error", "order_create_failed", { rid });
           return fail("ORDER_FAILED", "We could not start your order. Please try again.", 500);
         }
+        await auditCommerceMutation(supabaseAdmin, {
+          action: "ORDER_CREATED",
+          entityType: "order",
+          entityId: order.id,
+          metadata: { order_number: order.order_number, guest: !customer },
+        });
 
-        await supabaseAdmin.from("order_items").insert(
+        const { error: itemsError } = await supabaseAdmin.from("order_items").insert(
           totals.items.map((i) => ({
             order_id: order.id,
             product_id: i.productId,
@@ -186,47 +149,95 @@ export const Route = createFileRoute("/api/public/checkout")({
             line_total: i.lineTotal,
           })),
         );
+        if (itemsError) {
+          logEvent("error", "order_items_create_failed", { rid, order_id: order.id });
+          const { error: cleanupError } = await supabaseAdmin
+            .from("orders")
+            .update({
+              status: "CANCELLED",
+              payment_status: "CANCELLED",
+              cancelled_at: new Date().toISOString(),
+            })
+            .eq("id", order.id);
+          if (cleanupError) logEvent("error", "order_cleanup_failed", { rid, order_id: order.id });
+          return fail("ORDER_FAILED", "We could not start your order. Please try again.", 500);
+        }
 
         // 5. Reserve inventory atomically; roll back on any shortfall.
         const reserved: Array<{ sku: string; quantity: number }> = [];
         for (const line of totals.items) {
-          const { data: okReserve } = await supabaseAdmin.rpc("reserve_inventory", {
-            _sku: line.sku,
-            _qty: line.quantity,
-            _reference_id: order.id,
-          });
-          if (!okReserve) {
+          const { data: okReserve, error: reserveError } = await supabaseAdmin.rpc(
+            "reserve_inventory",
+            {
+              _sku: line.sku,
+              _qty: line.quantity,
+              _reference_id: order.id,
+            },
+          );
+          if (reserveError || !okReserve) {
             for (const r of reserved) {
-              await supabaseAdmin.rpc("release_inventory", {
-                _sku: r.sku,
-                _qty: r.quantity,
-                _reference_id: order.id,
-              });
+              const { data: released, error: releaseError } = await supabaseAdmin.rpc(
+                "release_inventory",
+                {
+                  _sku: r.sku,
+                  _qty: r.quantity,
+                  _reference_id: order.id,
+                },
+              );
+              if (releaseError || !released)
+                logEvent("error", "checkout_reservation_rollback_failed", {
+                  rid,
+                  order_id: order.id,
+                  sku: r.sku,
+                });
             }
-            await supabaseAdmin
+            const { error: cancelError } = await supabaseAdmin
               .from("orders")
               .update({ status: "CANCELLED", cancelled_at: new Date().toISOString() })
               .eq("id", order.id);
-            return fail("OUT_OF_STOCK", "This product is no longer available.", 409);
+            if (cancelError)
+              logEvent("error", "checkout_cancel_failed", { rid, order_id: order.id });
+            return fail(
+              reserveError ? "INVENTORY_UNAVAILABLE" : "OUT_OF_STOCK",
+              reserveError
+                ? "Inventory is temporarily unavailable."
+                : "This product is no longer available.",
+              reserveError ? 503 : 409,
+            );
           }
           reserved.push({ sku: line.sku, quantity: line.quantity });
         }
 
         // 6. Create the Razorpay order server-side.
-        const rzp = await createRazorpayOrder({
-          amountPaise: toPaise(totals.grandTotal),
-          currency: "INR",
-          receipt: order.order_number,
-          notes: { order_id: order.id },
-        });
+        let rzp;
+        try {
+          rzp = await createRazorpayOrder({
+            amountPaise: toPaise(totals.grandTotal),
+            currency: "INR",
+            receipt: order.order_number,
+            notes: { order_id: order.id },
+          });
+        } catch {
+          logEvent("error", "razorpay_order_unavailable", { rid, order_id: order.id });
+          rzp = { error: "RAZORPAY_ORDER_UNAVAILABLE" };
+        }
 
         if ("error" in rzp) {
           for (const r of reserved) {
-            await supabaseAdmin.rpc("release_inventory", {
-              _sku: r.sku,
-              _qty: r.quantity,
-              _reference_id: order.id,
-            });
+            const { data: released, error: releaseError } = await supabaseAdmin.rpc(
+              "release_inventory",
+              {
+                _sku: r.sku,
+                _qty: r.quantity,
+                _reference_id: order.id,
+              },
+            );
+            if (releaseError || !released)
+              logEvent("error", "payment_reservation_rollback_failed", {
+                rid,
+                order_id: order.id,
+                sku: r.sku,
+              });
           }
           await supabaseAdmin
             .from("orders")
@@ -242,11 +253,11 @@ export const Route = createFileRoute("/api/public/checkout")({
           );
         }
 
-        await supabaseAdmin
+        const { error: orderUpdateError } = await supabaseAdmin
           .from("orders")
           .update({ razorpay_order_id: rzp.id })
           .eq("id", order.id);
-        await supabaseAdmin.from("payments").insert({
+        const { error: paymentError } = await supabaseAdmin.from("payments").insert({
           order_id: order.id,
           provider: "razorpay",
           razorpay_order_id: rzp.id,
@@ -255,6 +266,10 @@ export const Route = createFileRoute("/api/public/checkout")({
           currency: "INR",
         });
 
+        if (orderUpdateError || paymentError) {
+          logEvent("error", "checkout_payment_record_failed", { rid, order_id: order.id });
+          return fail("ORDER_FAILED", "We could not start your payment. Please try again.", 500);
+        }
         logEvent("info", "checkout_created", { rid, order_id: order.id });
 
         // Only the public key id ever reaches the browser.

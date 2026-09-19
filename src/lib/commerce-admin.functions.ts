@@ -37,3 +37,41 @@ export const adminCancelShipment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { orderId: string }) => data)
   .handler(async ({ data, context }) => srv.adminCancelShipment(context, data.orderId));
+
+export const adminReconcileShipment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { shipmentId: string; apply?: boolean }) => data)
+  .handler(async ({ data, context }) =>
+    srv.adminReconcileShipment(context, data.shipmentId, data.apply ?? false),
+  );
+
+export const adminModerateReview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { reviewId: string; status: "PENDING" | "APPROVED" | "REJECTED" }) => data)
+  .handler(async ({ data, context }) =>
+    srv.adminModerateReview(context, data.reviewId, data.status),
+  );
+
+export const adminCreateRefund = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (data: { orderId: string; amount: number; reason?: string | null; idempotencyKey: string }) =>
+      data,
+  )
+  .handler(async ({ data, context }) => srv.adminCreateRefund(context, data));
+
+export const adminCancelOrder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { orderId: string; reason?: string | null }) => data)
+  .handler(async ({ data, context }) =>
+    srv.adminCancelOrder(context, data.orderId, data.reason ?? null),
+  );
+
+export const getReconciliationReport = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => srv.getReconciliationReport(context));
+
+export const reconcilePayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { paymentId: string }) => data)
+  .handler(async ({ data, context }) => srv.reconcilePaymentById(context, data.paymentId));

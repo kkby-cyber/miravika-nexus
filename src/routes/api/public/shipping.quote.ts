@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { ok, fail, preflight } from "@/lib/api-response";
 import { checkServiceability, getShiprocketConfig } from "@/lib/shiprocket.server";
+import { enforceRateLimit } from "@/lib/rate-limit.server";
 
 const schema = z.object({
   pincode: z.string().regex(/^\d{6}$/),
@@ -17,6 +18,15 @@ export const Route = createFileRoute("/api/public/shipping/quote")({
     handlers: {
       OPTIONS: async () => preflight(),
       POST: async ({ request }) => {
+        const rateLimit = await enforceRateLimit(request, "shipping-quote", 30);
+        if (rateLimit.error)
+          return fail(
+            "RATE_LIMIT_UNAVAILABLE",
+            "Shipping quotes are temporarily unavailable.",
+            503,
+          );
+        if (!rateLimit.allowed)
+          return fail("RATE_LIMITED", "Too many shipping quote requests.", 429);
         let body;
         try {
           body = schema.parse(await request.json());
@@ -28,15 +38,17 @@ export const Route = createFileRoute("/api/public/shipping/quote")({
 
         // Authoritative weight + value from the catalogue, never from the client.
         const skus = body.items.map((i) => i.sku);
-        const { data: variants } = await supabaseAdmin
+        const { data: variants, error: variantsError } = await supabaseAdmin
           .from("product_variants")
           .select("sku, product_id, price")
           .in("sku", skus);
-        const { data: products } = await supabaseAdmin
+        const { data: products, error: productsError } = await supabaseAdmin
           .from("products")
-          .select("id, sku, price, weight_grams")
+          .select("id, sku, price, weight_grams, status")
           .in("sku", skus);
 
+        if (variantsError || productsError)
+          return fail("CATALOG_UNAVAILABLE", "Shipping quotes are temporarily unavailable.", 503);
         const productById = new Map((products ?? []).map((p) => [p.id, p]));
         const productBySku = new Map((products ?? []).map((p) => [p.sku, p]));
         const variantBySku = new Map((variants ?? []).map((v) => [v.sku, v]));
@@ -45,20 +57,25 @@ export const Route = createFileRoute("/api/public/shipping/quote")({
         let declaredValue = 0;
         for (const item of body.items) {
           const variant = variantBySku.get(item.sku);
-          const product = variant ? productById.get(variant.product_id) : productBySku.get(item.sku);
-          if (!product) return fail("PRODUCT_UNAVAILABLE", `${item.sku} is not available.`, 409);
+          const product = variant
+            ? productById.get(variant.product_id)
+            : productBySku.get(item.sku);
+          if (!product || product.status !== "ACTIVE")
+            return fail("PRODUCT_UNAVAILABLE", `${item.sku} is not available.`, 409);
           grams += Number(product.weight_grams ?? 300) * item.quantity;
           declaredValue += Number(variant?.price ?? product.price) * item.quantity;
         }
         const weightKg = Math.max(0.1, Math.round((grams / 1000) * 100) / 100);
 
         // Configured flat-rate fallback keeps checkout working without couriers.
-        const { data: methods } = await supabaseAdmin
+        const { data: methods, error: methodsError } = await supabaseAdmin
           .from("shipping_methods")
           .select("id, name, flat_rate, free_shipping_threshold, min_days, max_days")
           .eq("is_active", true)
           .order("position")
           .limit(1);
+        if (methodsError)
+          return fail("SHIPPING_UNAVAILABLE", "Shipping quotes are temporarily unavailable.", 503);
         const method = methods?.[0] ?? null;
         const threshold = method?.free_shipping_threshold;
         const flatRate =
@@ -86,9 +103,17 @@ export const Route = createFileRoute("/api/public/shipping/quote")({
           declaredValue,
         });
 
-        if (!result.ok || result.couriers.length === 0) {
+        if (!result.ok) {
+          return fail(
+            "SHIPPING_PROVIDER_UNAVAILABLE",
+            "Shipping serviceability is temporarily unavailable.",
+            503,
+          );
+        }
+
+        if (result.couriers.length === 0) {
           return ok({
-            serviceable: result.ok ? false : true,
+            serviceable: false,
             shipping_charge: flatRate,
             currency: "INR",
             estimated_days: method ? { min: method.min_days, max: method.max_days } : null,

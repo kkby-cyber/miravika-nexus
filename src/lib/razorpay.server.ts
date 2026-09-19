@@ -107,3 +107,36 @@ export async function fetchRazorpayPayment(paymentId: string) {
     method?: string;
   };
 }
+
+export async function createRazorpayRefund(input: {
+  paymentId: string;
+  amountPaise: number;
+  notes?: Record<string, string>;
+}): Promise<{ id: string; amount: number; status?: string } | { error: string }> {
+  const config = getRazorpayConfig();
+  if (!config) return { error: "RAZORPAY_NOT_CONFIGURED" };
+  if (!Number.isInteger(input.amountPaise) || input.amountPaise <= 0) {
+    return { error: "INVALID_REFUND_AMOUNT" };
+  }
+  const auth = btoa(`${config.keyId}:${config.keySecret}`);
+  const res = await fetch(`https://api.razorpay.com/v1/payments/${input.paymentId}/refund`, {
+    method: "POST",
+    headers: {
+      authorization: `Basic ${auth}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ amount: input.amountPaise, notes: input.notes ?? {} }),
+  });
+  if (!res.ok) {
+    console.error("razorpay_refund_create_failed", { status: res.status });
+    return { error: "RAZORPAY_REFUND_FAILED" };
+  }
+  const body = (await res.json()) as { id?: string; amount?: number; status?: string };
+  if (!body.id || body.amount !== input.amountPaise)
+    return { error: "RAZORPAY_REFUND_INVALID_RESPONSE" };
+  return {
+    id: body.id,
+    amount: body.amount,
+    ...(body.status ? { status: body.status } : {}),
+  };
+}

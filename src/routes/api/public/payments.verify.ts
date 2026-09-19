@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ok, fail, preflight, logEvent } from "@/lib/api-response";
 import { verifyPaymentSignature, fetchRazorpayPayment } from "@/lib/razorpay.server";
 import { markOrderPaid } from "@/lib/order-fulfilment.server";
+import { enforceRateLimit } from "@/lib/rate-limit.server";
 
 const schema = z.object({
   razorpay_order_id: z.string().min(4).max(80),
@@ -15,6 +16,15 @@ export const Route = createFileRoute("/api/public/payments/verify")({
     handlers: {
       OPTIONS: async () => preflight(),
       POST: async ({ request }) => {
+        const rateLimit = await enforceRateLimit(request, "payment-verification", 20);
+        if (rateLimit.error)
+          return fail(
+            "RATE_LIMIT_UNAVAILABLE",
+            "Payment verification is temporarily unavailable.",
+            503,
+          );
+        if (!rateLimit.allowed)
+          return fail("RATE_LIMITED", "Too many payment verification attempts.", 429);
         let body;
         try {
           body = schema.parse(await request.json());
@@ -33,17 +43,27 @@ export const Route = createFileRoute("/api/public/payments/verify")({
         }
 
         // Never trust the callback alone: confirm with Razorpay directly.
-        const payment = await fetchRazorpayPayment(body.razorpay_payment_id);
+        let payment;
+        try {
+          payment = await fetchRazorpayPayment(body.razorpay_payment_id);
+        } catch {
+          return fail(
+            "PAYMENT_PROVIDER_UNAVAILABLE",
+            "Payment verification is temporarily unavailable.",
+            503,
+          );
+        }
         if (!payment || payment.order_id !== body.razorpay_order_id) {
           return fail("PAYMENT_UNVERIFIED", "We could not verify this payment.", 400);
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: order } = await supabaseAdmin
+        const { data: order, error: orderError } = await supabaseAdmin
           .from("orders")
           .select("id, order_number, grand_total, payment_status")
           .eq("razorpay_order_id", body.razorpay_order_id)
           .maybeSingle();
+        if (orderError) return fail("ORDER_UNAVAILABLE", "The order could not be verified.", 503);
         if (!order) return fail("NOT_FOUND", "Order not found.", 404);
 
         if (Math.round(Number(order.grand_total) * 100) !== payment.amount) {
@@ -72,7 +92,11 @@ export const Route = createFileRoute("/api/public/payments/verify")({
         } catch {
           logEvent("error", "shipment_autocreate_failed", { order_id: order.id });
         }
-        return ok({ order_number: order.order_number, status: "PAID", duplicate: result.duplicate });
+        return ok({
+          order_number: order.order_number,
+          status: "PAID",
+          duplicate: result.duplicate,
+        });
       },
     },
   },

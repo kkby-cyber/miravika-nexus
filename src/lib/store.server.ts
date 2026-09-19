@@ -42,26 +42,43 @@ export type RequestedItem = { sku: string; quantity: number };
 
 export type LineResolution =
   | { ok: true; lines: PriceLine[] }
-  | { ok: false; code: "PRODUCT_UNAVAILABLE" | "OUT_OF_STOCK"; message: string; sku: string };
+  | {
+      ok: false;
+      code: "PRODUCT_UNAVAILABLE" | "OUT_OF_STOCK" | "STORE_UNAVAILABLE";
+      message: string;
+      sku: string;
+    };
 
 /**
  * Turns a list of `{ sku, quantity }` into authoritative price lines,
  * validating status, visibility and available stock along the way.
  */
-export async function resolveLines(
-  admin: Admin,
-  items: RequestedItem[],
-): Promise<LineResolution> {
+export async function resolveLines(admin: Admin, items: RequestedItem[]): Promise<LineResolution> {
   const skus = [...new Set(items.map((i) => i.sku))];
 
-  const [{ data: variants }, { data: products }, { data: inventory }] = await Promise.all([
-    admin.from("product_variants").select("id, product_id, sku, title, price, status").in("sku", skus),
+  const [
+    { data: variants, error: variantsError },
+    { data: products, error: productsError },
+    { data: inventory, error: inventoryError },
+  ] = await Promise.all([
+    admin
+      .from("product_variants")
+      .select("id, product_id, sku, title, price, status")
+      .in("sku", skus),
     admin
       .from("products")
       .select("id, sku, title, price, tax_rate, tax_inclusive, status, is_visible, deleted_at")
       .in("sku", skus),
     admin.from("inventory").select("sku, available_quantity").in("sku", skus),
   ]);
+  if (variantsError || productsError || inventoryError) {
+    return {
+      ok: false,
+      code: "STORE_UNAVAILABLE",
+      message: "Product availability is temporarily unavailable.",
+      sku: "",
+    };
+  }
 
   const variantBySku = new Map((variants ?? []).map((v: Any) => [v.sku, v]));
   const productBySku = new Map((products ?? []).map((p: Any) => [p.sku, p]));
@@ -69,10 +86,18 @@ export async function resolveLines(
 
   let parents: Any[] = [];
   if (productIds.length) {
-    const { data } = await admin
+    const { data, error } = await admin
       .from("products")
       .select("id, sku, title, price, tax_rate, tax_inclusive, status, is_visible, deleted_at")
       .in("id", productIds);
+    if (error) {
+      return {
+        ok: false,
+        code: "STORE_UNAVAILABLE",
+        message: "Product availability is temporarily unavailable.",
+        sku: "",
+      };
+    }
     parents = data ?? [];
   }
   const productById = new Map([...(products ?? []), ...parents].map((p: Any) => [p.id, p]));
@@ -81,7 +106,9 @@ export async function resolveLines(
   const lines: PriceLine[] = [];
   for (const item of items) {
     const variant = variantBySku.get(item.sku) as Any;
-    const product = (variant ? productById.get(variant.product_id) : productBySku.get(item.sku)) as Any;
+    const product = (
+      variant ? productById.get(variant.product_id) : productBySku.get(item.sku)
+    ) as Any;
 
     if (
       !product ||
@@ -127,8 +154,7 @@ export async function resolveLines(
 type Any = any;
 
 export type CouponCheck =
-  | { ok: true; coupon: CouponRule }
-  | { ok: false; code: string; message: string };
+  { ok: true; coupon: CouponRule } | { ok: false; code: string; message: string };
 
 /**
  * Full server-side coupon validation: activity window, usage limits,
@@ -139,13 +165,23 @@ export async function validateCoupon(
   code: string,
   opts: { subtotal: number; userId?: string | null; productIds?: string[] },
 ): Promise<CouponCheck> {
-  const { data: c } = await admin
+  const { data: c, error: couponError } = await admin
     .from("coupons")
     .select("*")
     .eq("code", code.trim().toUpperCase())
     .maybeSingle();
 
-  const invalid = { ok: false as const, code: "INVALID_COUPON", message: "This coupon code cannot be used." };
+  const invalid = {
+    ok: false as const,
+    code: "INVALID_COUPON",
+    message: "This coupon code cannot be used.",
+  };
+  if (couponError)
+    return {
+      ok: false,
+      code: "COUPON_UNAVAILABLE",
+      message: "Coupons are temporarily unavailable.",
+    };
   if (!c || !c.is_active) return invalid;
 
   const now = new Date();
@@ -163,13 +199,23 @@ export async function validateCoupon(
     };
 
   if (opts.userId && c.per_customer_limit != null) {
-    const { count } = await admin
+    const { count, error } = await admin
       .from("coupon_redemptions")
       .select("id", { count: "exact", head: true })
       .eq("coupon_id", c.id)
       .eq("user_id", opts.userId);
+    if (error)
+      return {
+        ok: false,
+        code: "COUPON_UNAVAILABLE",
+        message: "Coupons are temporarily unavailable.",
+      };
     if ((count ?? 0) >= c.per_customer_limit)
-      return { ok: false, code: "COUPON_LIMIT_REACHED", message: "You have already used this code." };
+      return {
+        ok: false,
+        code: "COUPON_LIMIT_REACHED",
+        message: "You have already used this code.",
+      };
   }
 
   const restrictedProducts: string[] = c.product_ids ?? [];
@@ -177,11 +223,17 @@ export async function validateCoupon(
   if ((restrictedProducts.length || restrictedCollections.length) && opts.productIds?.length) {
     let eligible = opts.productIds.some((id) => restrictedProducts.includes(id));
     if (!eligible && restrictedCollections.length) {
-      const { data: links } = await admin
+      const { data: links, error } = await admin
         .from("product_collections")
         .select("product_id")
         .in("collection_id", restrictedCollections)
         .in("product_id", opts.productIds);
+      if (error)
+        return {
+          ok: false,
+          code: "COUPON_UNAVAILABLE",
+          message: "Coupons are temporarily unavailable.",
+        };
       eligible = (links ?? []).length > 0;
     }
     if (!eligible)
@@ -210,17 +262,18 @@ export async function resolveShipping(
   admin: Admin,
   methodId?: string | null,
   postalCode?: string | null,
-): Promise<(ShippingRule & { id: string; name: string; min_days: number | null; max_days: number | null }) | null> {
-  let query = admin
-    .from("shipping_methods")
-    .select("id, name, flat_rate, free_shipping_threshold, min_days, max_days, zone_id")
-    .eq("is_active", true)
-    .order("position", { ascending: true });
-  if (methodId) query = query.eq("id", methodId);
-  const { data } = await query.limit(1);
-  const method = (data ?? [])[0];
+): Promise<
+  | (ShippingRule & { id: string; name: string; min_days: number | null; max_days: number | null })
+  | null
+> {
+  const options = await listShippingOptions(
+    admin,
+    postalCode === undefined ? {} : { postal_code: postalCode },
+  );
+  const method = (
+    methodId ? options.find((option: Any) => option.id === methodId) : options[0]
+  ) as Any;
   if (!method) return null;
-  void postalCode; // zone matching by postal prefix is applied in listShippingOptions
   return {
     id: method.id,
     name: method.name,
@@ -237,11 +290,12 @@ export async function listShippingOptions(
   admin: Admin,
   destination: { country?: string | null; state?: string | null; postal_code?: string | null },
 ) {
-  const { data: zones } = await admin
+  const { data: zones, error: zonesError } = await admin
     .from("shipping_zones")
     .select("id, name, country, states, postal_prefixes")
     .eq("is_active", true);
 
+  if (zonesError) throw new Error("shipping_zones_lookup_failed");
   const country = (destination.country ?? "IN").toUpperCase();
   const matching = (zones ?? []).filter((z: Any) => {
     if (z.country.toUpperCase() !== country) return false;
@@ -253,18 +307,26 @@ export async function listShippingOptions(
         states.some((s) => s.toLowerCase() === destination.state!.toLowerCase()));
     const pinOk =
       prefixes.length === 0 ||
-      (destination.postal_code != null && prefixes.some((p) => destination.postal_code!.startsWith(p)));
+      (destination.postal_code != null &&
+        prefixes.some((p) => destination.postal_code!.startsWith(p)));
     return stateOk && pinOk;
   });
 
   const zoneIds = matching.map((z: Any) => z.id);
   let query = admin
     .from("shipping_methods")
-    .select("id, zone_id, name, description, flat_rate, free_shipping_threshold, min_days, max_days")
+    .select(
+      "id, zone_id, name, description, flat_rate, free_shipping_threshold, min_days, max_days",
+    )
     .eq("is_active", true)
     .order("position", { ascending: true });
-  if (zoneIds.length) query = query.or(`zone_id.is.null,zone_id.in.(${zoneIds.join(",")})`);
-  const { data } = await query;
+  if (zones?.length) {
+    query = zoneIds.length
+      ? query.or(`zone_id.is.null,zone_id.in.(${zoneIds.join(",")})`)
+      : query.is("zone_id", null);
+  }
+  const { data, error } = await query;
+  if (error) throw new Error("shipping_methods_lookup_failed");
   return data ?? [];
 }
 

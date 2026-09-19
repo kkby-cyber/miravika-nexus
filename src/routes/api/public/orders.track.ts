@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { ok, fail, preflight } from "@/lib/api-response";
+import { enforceRateLimit } from "@/lib/rate-limit.server";
 
 const schema = z.object({
   order_number: z.string().min(4).max(40),
@@ -16,6 +17,10 @@ export const Route = createFileRoute("/api/public/orders/track")({
     handlers: {
       OPTIONS: async () => preflight(),
       POST: async ({ request }) => {
+        const rateLimit = await enforceRateLimit(request, "order-tracking", 20);
+        if (rateLimit.error)
+          return fail("RATE_LIMIT_UNAVAILABLE", "Order tracking is temporarily unavailable.", 503);
+        if (!rateLimit.allowed) return fail("RATE_LIMITED", "Too many tracking requests.", 429);
         let body;
         try {
           body = schema.parse(await request.json());
@@ -24,7 +29,7 @@ export const Route = createFileRoute("/api/public/orders/track")({
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: order } = await supabaseAdmin
+        const { data: order, error: orderError } = await supabaseAdmin
           .from("orders")
           .select(
             "id, order_number, status, payment_status, grand_total, currency, tracking_number, tracking_url, created_at, paid_at",
@@ -33,27 +38,34 @@ export const Route = createFileRoute("/api/public/orders/track")({
           .ilike("email", body.email)
           .maybeSingle();
 
+        if (orderError)
+          return fail("ORDER_UNAVAILABLE", "Order tracking is temporarily unavailable.", 503);
         if (!order) return fail("NOT_FOUND", "We could not find that order.", 404);
 
-        const [{ data: items }, { data: shipment }] = await Promise.all([
-          supabaseAdmin
-            .from("order_items")
-            .select("title, sku, quantity, line_total")
-            .eq("order_id", order.id),
-          supabaseAdmin
-            .from("shipments")
-            .select("status, courier_name, awb_code, tracking_url, estimated_delivery_date, shipped_at, delivered_at")
-            .eq("order_id", order.id)
-            .maybeSingle(),
-        ]);
+        const [{ data: items, error: itemsError }, { data: shipment, error: shipmentError }] =
+          await Promise.all([
+            supabaseAdmin
+              .from("order_items")
+              .select("title, sku, quantity, line_total")
+              .eq("order_id", order.id),
+            supabaseAdmin
+              .from("shipments")
+              .select(
+                "status, courier_name, awb_code, tracking_url, estimated_delivery_date, shipped_at, delivered_at",
+              )
+              .eq("order_id", order.id)
+              .maybeSingle(),
+          ]);
 
-        const { data: events } = await supabaseAdmin
+        const { data: events, error: eventsError } = await supabaseAdmin
           .from("shipment_events")
           .select("status, location, occurred_at")
           .eq("order_id", order.id)
           .order("occurred_at", { ascending: false })
           .limit(20);
 
+        if (itemsError || shipmentError || eventsError)
+          return fail("TRACKING_UNAVAILABLE", "Order tracking is temporarily unavailable.", 503);
         return ok({
           order_number: order.order_number,
           status: order.status,

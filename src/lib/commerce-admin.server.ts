@@ -11,6 +11,13 @@ import {
   cancelOrderShipment,
 } from "@/lib/shipment.server";
 import { requireStaff, requirePermission, recordActivity } from "@/lib/staff.server";
+import { createRefund } from "@/lib/refund.server";
+import {
+  getPaymentReconciliationReport,
+  reconcilePayment,
+} from "@/lib/payment-reconciliation.server";
+import { cancelOrder } from "@/lib/order-cancellation.server";
+import { reconcileShipment } from "@/lib/shipment-reconciliation.server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Ctx = { supabase: any; userId: string };
@@ -123,6 +130,85 @@ export async function adminCancelShipment(ctx: Ctx, orderId: string) {
   return res;
 }
 
+export async function adminReconcileShipment(ctx: Ctx, shipmentId: string, apply = false) {
+  await requirePermission(ctx, apply ? "shipping.edit" : "shipping.view");
+  const result = await reconcileShipment(await admin(), shipmentId, apply);
+  await recordActivity(ctx, {
+    action: result.ok ? "SHIPMENT_RECONCILED" : "SHIPMENT_RECONCILIATION_FAILED",
+    entityType: "shipment",
+    entityId: shipmentId,
+    metadata: { applied: apply, error: result.ok ? undefined : result.error },
+  });
+  return result;
+}
+
+export async function adminModerateReview(
+  ctx: Ctx,
+  reviewId: string,
+  status: "PENDING" | "APPROVED" | "REJECTED",
+) {
+  await requireStaff(ctx);
+  const db = await admin();
+  const { data, error } = await db
+    .from("reviews")
+    .update({ status })
+    .eq("id", reviewId)
+    .select("id, product_id, user_id, status")
+    .single();
+  if (error || !data) return { ok: false as const, error: "REVIEW_MODERATION_FAILED" };
+  await recordActivity(ctx, {
+    action: "REVIEW_MODERATED",
+    entityType: "review",
+    entityId: reviewId,
+    metadata: { status },
+  });
+  return { ok: true as const, review: data };
+}
+
+export async function adminCreateRefund(
+  ctx: Ctx,
+  input: { orderId: string; amount: number; reason?: string | null; idempotencyKey: string },
+) {
+  await requirePermission(ctx, "orders.refund");
+  const result = await createRefund(await admin(), input);
+  await recordActivity(ctx, {
+    action: result.ok ? "REFUND_CREATED" : "REFUND_CREATE_FAILED",
+    entityType: "order",
+    entityId: input.orderId,
+    metadata: { error: result.ok ? undefined : result.error },
+  });
+  return result;
+}
+
+export async function adminCancelOrder(ctx: Ctx, orderId: string, reason?: string | null) {
+  await requirePermission(ctx, "orders.cancel");
+  const result = await cancelOrder(await admin(), orderId, reason);
+  await recordActivity(ctx, {
+    action: result.ok ? "ORDER_CANCELLED" : "ORDER_CANCEL_FAILED",
+    entityType: "order",
+    entityId: orderId,
+    metadata: { error: result.ok ? undefined : result.error },
+  });
+  return result;
+}
+
+export async function getReconciliationReport(ctx: Ctx) {
+  await requirePermission(ctx, "orders.view");
+  return getPaymentReconciliationReport(await admin());
+}
+
+export async function reconcilePaymentById(ctx: Ctx, paymentId: string) {
+  await requirePermission(ctx, "orders.edit");
+  const result = await reconcilePayment(await admin(), paymentId);
+  await recordActivity(ctx, {
+    action: result.ok ? "PAYMENT_RECONCILED" : "PAYMENT_RECONCILIATION_FAILED",
+    entityType: "payment",
+    entityId: paymentId,
+    metadata: { error: result.ok ? undefined : result.error },
+  });
+  return result;
+}
+
 /** Full order detail: items, payments, shipment and event trail. */
 export async function getOrderDetail(ctx: Ctx, orderId: string) {
   await requireStaff(ctx);
@@ -133,7 +219,9 @@ export async function getOrderDetail(ctx: Ctx, orderId: string) {
     db.from("order_items").select("*").eq("order_id", orderId),
     db
       .from("payments")
-      .select("id, provider, razorpay_order_id, razorpay_payment_id, status, amount, method, error_description, created_at")
+      .select(
+        "id, provider, razorpay_order_id, razorpay_payment_id, status, amount, method, error_description, created_at",
+      )
       .eq("order_id", orderId),
     db.from("shipments").select("*").eq("order_id", orderId).maybeSingle(),
     db.from("order_status_history").select("*").eq("order_id", orderId).order("created_at"),
@@ -161,10 +249,7 @@ export async function getCommerceMetrics(ctx: Ctx) {
   start.setHours(0, 0, 0, 0);
 
   const [todayRows, allRows, lowStock] = await Promise.all([
-    db
-      .from("orders")
-      .select("grand_total, payment_status")
-      .gte("created_at", start.toISOString()),
+    db.from("orders").select("grand_total, payment_status").gte("created_at", start.toISOString()),
     db.from("orders").select("status, payment_status, grand_total"),
     db.from("inventory").select("sku, available_quantity, low_stock_threshold"),
   ]);
@@ -181,10 +266,19 @@ export async function getCommerceMetrics(ctx: Ctx) {
     pending_payments: all.filter((o) => o.payment_status === "PENDING").length,
     paid: all.filter((o) => o.payment_status === "PAID").length,
     processing: count("PROCESSING") + count("CONFIRMED") + count("PACKED"),
-    shipped: count("SHIPPED") + count("SHIPMENT_CREATED") + count("AWB_ASSIGNED") + count("PICKUP_SCHEDULED") + count("OUT_FOR_DELIVERY"),
+    shipped:
+      count("SHIPPED") +
+      count("SHIPMENT_CREATED") +
+      count("AWB_ASSIGNED") +
+      count("PICKUP_SCHEDULED") +
+      count("OUT_FOR_DELIVERY"),
     delivered: count("DELIVERED"),
     cancelled: count("CANCELLED"),
-    returns_rto: count("RTO_INITIATED") + count("RTO_DELIVERED") + count("RETURNED") + count("RETURN_REQUESTED"),
+    returns_rto:
+      count("RTO_INITIATED") +
+      count("RTO_DELIVERED") +
+      count("RETURNED") +
+      count("RETURN_REQUESTED"),
     low_stock: ((lowStock.data ?? []) as Json[]).filter(
       (i) => Number(i.available_quantity) <= Number(i.low_stock_threshold ?? 0),
     ).length,

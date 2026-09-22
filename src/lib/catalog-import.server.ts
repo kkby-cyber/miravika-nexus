@@ -108,9 +108,39 @@ function slugify(value: string): string {
   return slug || "product";
 }
 
+function normalizeHeaderKey(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+}
+
 function firstValue(raw: RawRow, keys: string[]): unknown {
   for (const key of keys) {
     const value = raw[key];
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return value;
+    }
+  }
+
+  const normalizedRaw = new Map<string, unknown>();
+
+  for (const [rawKey, value] of Object.entries(raw)) {
+    const normalizedKey = normalizeHeaderKey(rawKey);
+
+    if (
+      normalizedKey &&
+      value !== undefined &&
+      value !== null &&
+      String(value).trim() !== ""
+    ) {
+      normalizedRaw.set(normalizedKey, value);
+    }
+  }
+
+  for (const key of keys) {
+    const value = normalizedRaw.get(normalizeHeaderKey(key));
+
     if (value !== undefined && value !== null && String(value).trim() !== "") {
       return value;
     }

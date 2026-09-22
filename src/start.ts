@@ -83,6 +83,29 @@ const errorMiddleware = createMiddleware().server(
 // Keep CSRF protection for server functions.
 const csrfMiddleware = createCsrfMiddleware({
   filter: (ctx) => ctx.handlerType === "serverFn",
+  failureResponse: (ctx) => {
+    console.error("[CSRF DEBUG]", {
+      url: ctx.request.url,
+      method: ctx.request.method,
+      origin: ctx.request.headers.get("Origin"),
+      secFetchSite: ctx.request.headers.get("Sec-Fetch-Site"),
+      referer: ctx.request.headers.get("Referer"),
+    });
+
+    return Response.json(
+      {
+        error: "CSRF validation failed",
+        url: ctx.request.url,
+        method: ctx.request.method,
+        origin: ctx.request.headers.get("Origin"),
+        secFetchSite: ctx.request.headers.get("Sec-Fetch-Site"),
+        referer: ctx.request.headers.get("Referer"),
+      },
+      {
+        status: 403,
+      },
+    );
+  },
 });
 
 export const startInstance = createStart(() => ({

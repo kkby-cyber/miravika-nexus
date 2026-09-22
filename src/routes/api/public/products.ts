@@ -60,7 +60,17 @@ export const Route = createFileRoute("/api/public/products")({
         }
 
         const { data, error } = await query;
-        if (error) return fail("PRODUCTS_UNAVAILABLE", "Could not load products.", 500);
+        if (error) {
+  console.error("[PUBLIC_PRODUCTS_QUERY_ERROR]", {
+    requestId: request.headers.get("x-request-id"),
+    code: error.code,
+    message: error.message,
+    details: error.details,
+    hint: error.hint,
+  });
+
+  return fail("PRODUCTS_UNAVAILABLE", "Could not load products.", 500);
+}
         return ok({ products: data ?? [], limit, offset });
       },
     },

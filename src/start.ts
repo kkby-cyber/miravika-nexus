@@ -15,18 +15,20 @@ const securityHeaders = {
   "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=(self)",
 };
 
-function applySecurityHeaders(response: Response): Response {
+async function applySecurityHeaders(response: Response): Promise<Response> {
+  const headers = new Headers(response.headers);
+
   for (const [key, value] of Object.entries(securityHeaders)) {
-    response.headers.set(key, value);
+    headers.set(key, value);
   }
 
   if (process.env["NODE_ENV"] === "production") {
-    response.headers.set(
+    headers.set(
       "strict-transport-security",
       "max-age=31536000; includeSubDomains",
     );
 
-    response.headers.set(
+    headers.set(
       "content-security-policy",
       "default-src 'self'; " +
         "base-uri 'self'; " +
@@ -42,21 +44,20 @@ function applySecurityHeaders(response: Response): Response {
     );
   }
 
-  return response;
+  const body = await response.arrayBuffer();
+
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
 
 const errorMiddleware = createMiddleware().server(
-  async ({ next, request }) => {
+  async ({ next }) => {
     try {
       validateServerEnv();
-
-      const response = (await next()) as unknown as Response;
-
-      // IMPORTANT:
-      // Mutate the existing Response headers instead of constructing
-      // a new Response(response.body). Re-wrapping the Response can
-      // consume/lose the body under the current TanStack Start runtime.
-      return applySecurityHeaders(response);
+      return await next();
     } catch (error) {
       if (
         error != null &&
@@ -68,14 +69,13 @@ const errorMiddleware = createMiddleware().server(
 
       console.error(error);
 
-      return applySecurityHeaders(
-        new Response(renderErrorPage(), {
-          status: 500,
-          headers: {
-            "content-type": "text/html; charset=utf-8",
-          },
-        }),
-      );
+      return new Response(renderErrorPage(), {
+        status: 500,
+        headers: {
+          "content-type": "text/html; charset=utf-8",
+          ...securityHeaders,
+        },
+      });
     }
   },
 );

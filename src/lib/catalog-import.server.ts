@@ -69,6 +69,13 @@ function numberOrNull(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function kilogramsToGrams(value: unknown): number | null {
+  const parsed = numberOrNull(value);
+  if (parsed === null) return null;
+
+  return parsed * 1000;
+}
+
 function booleanOrDefault(value: unknown, fallback: boolean): boolean {
   if (value === null || value === undefined || value === "") return fallback;
 
@@ -128,12 +135,7 @@ function firstValue(raw: RawRow, keys: string[]): unknown {
   for (const [rawKey, value] of Object.entries(raw)) {
     const normalizedKey = normalizeHeaderKey(rawKey);
 
-    if (
-      normalizedKey &&
-      value !== undefined &&
-      value !== null &&
-      String(value).trim() !== ""
-    ) {
+    if (normalizedKey && value !== undefined && value !== null && String(value).trim() !== "") {
       normalizedRaw.set(normalizedKey, value);
     }
   }
@@ -151,11 +153,28 @@ function firstValue(raw: RawRow, keys: string[]): unknown {
 
 function normalizeRow(raw: RawRow, rowNumber: number): NormalizedRow {
   const sku = text(
-    firstValue(raw, ["sku", "SKU", "Seller SKU", "SellerSKU", "Style Code", "StyleCode"]),
+    firstValue(raw, [
+      "sku",
+      "SKU",
+      "Seller SKU",
+      "SellerSKU",
+      "Seller SKU Id",
+      "SellerSKUId",
+      "Style Code",
+      "StyleCode",
+    ]),
   );
 
   const title = text(
-    firstValue(raw, ["title", "Title", "Product Name", "ProductName", "name", "Name"]),
+    firstValue(raw, [
+      "title",
+      "Title",
+      "Product Name",
+      "ProductName",
+      "Product Title",
+      "name",
+      "Name",
+    ]),
   );
 
   const price = numberOrNull(
@@ -166,46 +185,89 @@ function normalizeRow(raw: RawRow, rowNumber: number): NormalizedRow {
       "SellingPrice",
       "Meesho Price",
       "Flipkart Selling Price",
+      "Your Selling Price",
+      "YourSellingPrice",
     ]),
   );
 
   const row: ImportRow = {
     sku,
     title,
-    description: nullable(
-      firstValue(raw, ["description", "Description", "Product Description"]),
-    ),
-    short_description: nullable(
-      firstValue(raw, ["short_description", "Short Description"]),
-    ),
-    brand:
-      nullable(firstValue(raw, ["brand", "Brand"])) ??
-      "MIRAVIKA",
+    description: nullable(firstValue(raw, ["description", "Description", "Product Description"])),
+    short_description: nullable(firstValue(raw, ["short_description", "Short Description"])),
+    brand: nullable(firstValue(raw, ["brand", "Brand"])) ?? "MIRAVIKA",
     product_type: nullable(
-      firstValue(raw, ["product_type", "Product Type", "Type", "Category"]),
+      firstValue(raw, [
+        "product_type",
+        "Product Type",
+        "Type",
+        "Category",
+        "Sub-category",
+        "Sub Category",
+      ]),
     ),
     material: nullable(firstValue(raw, ["material", "Material"])),
     size: nullable(firstValue(raw, ["size", "Size"])),
     color: nullable(firstValue(raw, ["color", "Color"])),
-    mrp: numberOrNull(firstValue(raw, ["mrp", "MRP", "MRP Price"])),
+    mrp: numberOrNull(firstValue(raw, ["mrp", "MRP", "MRP Price", "MRP Price in INR"])),
     price: price ?? 0,
     compare_at_price: numberOrNull(
       firstValue(raw, ["compare_at_price", "Compare At Price", "Compare Price"]),
     ),
-    tax_rate: numberOrNull(
-      firstValue(raw, ["tax_rate", "Tax Rate", "GST", "gst", "GST Rate"]),
+    tax_rate: numberOrNull(firstValue(raw, ["tax_rate", "Tax Rate", "GST", "gst", "GST Rate"])),
+    tax_inclusive: booleanOrDefault(firstValue(raw, ["tax_inclusive", "Tax Inclusive"]), true),
+    hsn_code: nullable(
+      firstValue(raw, ["hsn_code", "HSN", "HSN Code", "Harmonized System Nomenclature - HSN"]),
     ),
-    tax_inclusive: booleanOrDefault(
-      firstValue(raw, ["tax_inclusive", "Tax Inclusive"]),
-      true,
+    weight_grams: (() => {
+      const explicitGrams = firstValue(raw, [
+        "weight_grams",
+        "Weight Grams",
+        "Weight (g)",
+        "Net Weight (g)",
+      ]);
+
+      if (
+        explicitGrams !== undefined &&
+        explicitGrams !== null &&
+        String(explicitGrams).trim() !== ""
+      ) {
+        return numberOrNull(explicitGrams);
+      }
+
+      return kilogramsToGrams(
+        firstValue(raw, [
+          "Package Weight",
+          "Package Weight - Weight of the package in Kgs",
+          "Weight (Kg)",
+          "Weight (Kgs)",
+        ]),
+      );
+    })(),
+    length_cm: numberOrNull(
+      firstValue(raw, [
+        "length_cm",
+        "Length",
+        "Package Length",
+        "Package Length - Length of the package in cms",
+      ]),
     ),
-    hsn_code: nullable(firstValue(raw, ["hsn_code", "HSN", "HSN Code"])),
-    weight_grams: numberOrNull(
-      firstValue(raw, ["weight_grams", "Weight", "Net Weight"]),
+    width_cm: numberOrNull(
+      firstValue(raw, [
+        "width_cm",
+        "Width",
+        "Package Breadth",
+        "Package Breadth - Breadth of the package in cms",
+      ]),
     ),
-    length_cm: numberOrNull(firstValue(raw, ["length_cm", "Length"])),
-    width_cm: numberOrNull(firstValue(raw, ["width_cm", "Width"])),
-    height_cm: numberOrNull(firstValue(raw, ["height_cm", "Height"])),
+    height_cm: numberOrNull(
+      firstValue(raw, [
+        "height_cm",
+        "Height",
+        "Package Height",
+        "Package Height - Height of the package in cms",
+      ]),
+    ),
     stock: numberOrNull(
       firstValue(raw, [
         "stock",
@@ -213,43 +275,26 @@ function normalizeRow(raw: RawRow, rowNumber: number): NormalizedRow {
         "Inventory",
         "Available Quantity",
         "Quantity",
+        "Your Stock Count",
+        "YourStockCount",
       ]),
     ),
     image_urls: parseList(
-      firstValue(raw, [
-        "image_urls",
-        "Images",
-        "Image URLs",
-        "Image URL",
-        "Images URLs",
-      ]),
+      firstValue(raw, ["image_urls", "Images", "Image URLs", "Image URL", "Images URLs"]),
     ),
     collections: parseList(
-      firstValue(raw, ["collections", "Collections", "Category"]),
+      firstValue(raw, ["collections", "Collections", "Category", "Sub-category", "Sub Category"]),
     ),
     seo_title: nullable(firstValue(raw, ["seo_title", "SEO Title"])),
-    seo_description: nullable(
-      firstValue(raw, ["seo_description", "SEO Description"]),
-    ),
-    seo_keywords: nullable(
-      firstValue(raw, ["seo_keywords", "SEO Keywords"]),
-    ),
-    is_featured: booleanOrDefault(
-      firstValue(raw, ["is_featured", "Featured"]),
-      false,
-    ),
+    seo_description: nullable(firstValue(raw, ["seo_description", "SEO Description"])),
+    seo_keywords: nullable(firstValue(raw, ["seo_keywords", "SEO Keywords"])),
+    is_featured: booleanOrDefault(firstValue(raw, ["is_featured", "Featured"]), false),
     is_bestseller: booleanOrDefault(
       firstValue(raw, ["is_bestseller", "Bestseller", "Best Seller"]),
       false,
     ),
-    is_trending: booleanOrDefault(
-      firstValue(raw, ["is_trending", "Trending"]),
-      false,
-    ),
-    is_visible: booleanOrDefault(
-      firstValue(raw, ["is_visible", "Visible"]),
-      true,
-    ),
+    is_trending: booleanOrDefault(firstValue(raw, ["is_trending", "Trending"]), false),
+    is_visible: booleanOrDefault(firstValue(raw, ["is_visible", "Visible"]), true),
   };
 
   const errors: string[] = [];
@@ -271,10 +316,7 @@ function normalizeRow(raw: RawRow, rowNumber: number): NormalizedRow {
     errors.push("GST/tax rate must be between 0 and 100");
   }
 
-  if (
-    row.stock !== null &&
-    (!Number.isInteger(row.stock) || row.stock < 0)
-  ) {
+  if (row.stock !== null && (!Number.isInteger(row.stock) || row.stock < 0)) {
     errors.push("Stock must be a non-negative integer");
   }
 
@@ -326,10 +368,7 @@ async function loadExistingProducts(
   return result;
 }
 
-async function findCollectionId(
-  db: any,
-  name: string,
-): Promise<string | null> {
+async function findCollectionId(db: any, name: string): Promise<string | null> {
   const slug = slugify(name);
 
   const { data: existing, error } = await db
@@ -387,9 +426,17 @@ export async function previewCatalogImport(
 ) {
   await requirePermission(ctx, "products.create");
 
-  const normalized = input.rows.map((row, index) =>
-    normalizeRow(row, index + 2),
-  );
+  const normalized = input.rows
+    .filter((row) => {
+      const values = Object.values(row).map((value) => String(value ?? "").trim());
+
+      return !values.some(
+        (value) =>
+          value === "Your Identifier for a product" ||
+          value === "Title of your product as on Flipkart.com",
+      );
+    })
+    .map((row, index) => normalizeRow(row, index + 2));
 
   const seen = new Set<string>();
 
@@ -403,10 +450,7 @@ export async function previewCatalogImport(
     seen.add(row.sku);
   }
 
-  const existing = await loadExistingProducts(
-    ctx.supabase,
-    normalized,
-  );
+  const existing = await loadExistingProducts(ctx.supabase, normalized);
 
   const invalid = normalized.filter((row) => row.errors.length > 0);
   const valid = normalized.filter((row) => row.errors.length === 0);
@@ -457,11 +501,7 @@ async function ensureSlug(
   const base = slugify(title);
   const candidate = `${base}-${slugify(sku)}`;
 
-  const { data } = await db
-    .from("products")
-    .select("id")
-    .eq("slug", candidate)
-    .maybeSingle();
+  const { data } = await db.from("products").select("id").eq("slug", candidate).maybeSingle();
 
   if (!data || String(data.id) === existingId) {
     return candidate;
@@ -470,10 +510,7 @@ async function ensureSlug(
   return `${candidate}-${Date.now().toString(36)}`;
 }
 
-async function upsertProduct(
-  db: any,
-  row: ImportRow,
-): Promise<{ id: string; created: boolean }> {
+async function upsertProduct(db: any, row: ImportRow): Promise<{ id: string; created: boolean }> {
   const { data: existing, error: lookupError } = await db
     .from("products")
     .select("id, slug")
@@ -493,10 +530,7 @@ async function upsertProduct(
   const payload = productPayload(row, slug);
 
   if (existing?.id) {
-    const { error } = await db
-      .from("products")
-      .update(payload)
-      .eq("id", existing.id);
+    const { error } = await db.from("products").update(payload).eq("id", existing.id);
 
     if (error) throw new Error(error.message);
 
@@ -506,11 +540,7 @@ async function upsertProduct(
     };
   }
 
-  const { data, error } = await db
-    .from("products")
-    .insert(payload)
-    .select("id")
-    .single();
+  const { data, error } = await db.from("products").insert(payload).select("id").single();
 
   if (error) throw new Error(error.message);
 
@@ -520,11 +550,7 @@ async function upsertProduct(
   };
 }
 
-async function upsertVariant(
-  db: any,
-  row: ImportRow,
-  productId: string,
-) {
+async function upsertVariant(db: any, row: ImportRow, productId: string) {
   const { data: existing, error: lookupError } = await db
     .from("product_variants")
     .select("id")
@@ -549,32 +575,21 @@ async function upsertVariant(
   };
 
   if (existing?.id) {
-    const { error } = await db
-      .from("product_variants")
-      .update(payload)
-      .eq("id", existing.id);
+    const { error } = await db.from("product_variants").update(payload).eq("id", existing.id);
 
     if (error) throw new Error(error.message);
 
     return String(existing.id);
   }
 
-  const { data, error } = await db
-    .from("product_variants")
-    .insert(payload)
-    .select("id")
-    .single();
+  const { data, error } = await db.from("product_variants").insert(payload).select("id").single();
 
   if (error) throw new Error(error.message);
 
   return String(data.id);
 }
 
-async function upsertImages(
-  db: any,
-  row: ImportRow,
-  productId: string,
-) {
+async function upsertImages(db: any, row: ImportRow, productId: string) {
   for (let position = 0; position < row.image_urls.length; position += 1) {
     const url = row.image_urls[position];
 
@@ -599,51 +614,40 @@ async function upsertImages(
 
       if (error) throw new Error(error.message);
     } else {
-      const { error } = await db
-        .from("product_images")
-        .insert({
-          product_id: productId,
-          url,
-          alt_text: row.title,
-          position,
-          is_main: position === 0,
-        });
+      const { error } = await db.from("product_images").insert({
+        product_id: productId,
+        url,
+        alt_text: row.title,
+        position,
+        is_main: position === 0,
+      });
 
       if (error) throw new Error(error.message);
     }
   }
 }
 
-async function syncCollections(
-  db: any,
-  row: ImportRow,
-  productId: string,
-) {
+async function syncCollections(db: any, row: ImportRow, productId: string) {
   if (!row.collections.length) return;
 
   for (let position = 0; position < row.collections.length; position += 1) {
     const collectionName = row.collections[position];
     if (!collectionName) continue;
 
-    const matchedCollectionId = await findCollectionId(
-      db,
-      collectionName,
-    );
+    const matchedCollectionId = await findCollectionId(db, collectionName);
 
     if (!matchedCollectionId) continue;
 
-    const { error } = await db
-      .from("product_collections")
-      .upsert(
-        {
-          product_id: productId,
-          collection_id: matchedCollectionId,
-          position,
-        },
-        {
-          onConflict: "product_id,collection_id",
-        },
-      );
+    const { error } = await db.from("product_collections").upsert(
+      {
+        product_id: productId,
+        collection_id: matchedCollectionId,
+        position,
+      },
+      {
+        onConflict: "product_id,collection_id",
+      },
+    );
 
     if (error) throw new Error(error.message);
   }
@@ -683,20 +687,13 @@ async function syncInventory(
   let inventoryId: string;
 
   if (existing?.id) {
-    const { error } = await db
-      .from("inventory")
-      .update(payload)
-      .eq("id", existing.id);
+    const { error } = await db.from("inventory").update(payload).eq("id", existing.id);
 
     if (error) throw new Error(error.message);
 
     inventoryId = String(existing.id);
   } else {
-    const { data, error } = await db
-      .from("inventory")
-      .insert(payload)
-      .select("id")
-      .single();
+    const { data, error } = await db.from("inventory").insert(payload).select("id").single();
 
     if (error) throw new Error(error.message);
 
@@ -706,16 +703,14 @@ async function syncInventory(
   const delta = row.stock - previousAvailable;
 
   if (delta !== 0) {
-    const { error } = await db
-      .from("inventory_movements")
-      .insert({
-        inventory_id: inventoryId,
-        type: "import",
-        quantity: delta,
-        reference_type: "catalog_import",
-        note: `Catalog import for SKU ${row.sku}`,
-        created_by: userId,
-      });
+    const { error } = await db.from("inventory_movements").insert({
+      inventory_id: inventoryId,
+      type: "import",
+      quantity: delta,
+      reference_type: "catalog_import",
+      note: `Catalog import for SKU ${row.sku}`,
+      created_by: userId,
+    });
 
     if (error) throw new Error(error.message);
   }
@@ -732,9 +727,17 @@ export async function commitCatalogImport(
   await requirePermission(ctx, "products.create");
   await requirePermission(ctx, "inventory.edit");
 
-  const normalized = input.rows.map((row, index) =>
-    normalizeRow(row, index + 2),
-  );
+  const normalized = input.rows
+    .filter((row) => {
+      const values = Object.values(row).map((value) => String(value ?? "").trim());
+
+      return !values.some(
+        (value) =>
+          value === "Your Identifier for a product" ||
+          value === "Title of your product as on Flipkart.com",
+      );
+    })
+    .map((row, index) => normalizeRow(row, index + 2));
 
   const seen = new Set<string>();
 
@@ -751,9 +754,7 @@ export async function commitCatalogImport(
   const invalidRows = normalized.filter((row) => row.errors.length > 0);
 
   if (invalidRows.length > 0) {
-    throw new Error(
-      `Import blocked: ${invalidRows.length} invalid row(s). Run preview first.`,
-    );
+    throw new Error(`Import blocked: ${invalidRows.length} invalid row(s). Run preview first.`);
   }
 
   let created = 0;
@@ -765,31 +766,13 @@ export async function commitCatalogImport(
     if (product.created) created += 1;
     else updated += 1;
 
-    const variantId = await upsertVariant(
-      ctx.supabase,
-      row,
-      product.id,
-    );
+    const variantId = await upsertVariant(ctx.supabase, row, product.id);
 
-    await upsertImages(
-      ctx.supabase,
-      row,
-      product.id,
-    );
+    await upsertImages(ctx.supabase, row, product.id);
 
-    await syncCollections(
-      ctx.supabase,
-      row,
-      product.id,
-    );
+    await syncCollections(ctx.supabase, row, product.id);
 
-    await syncInventory(
-      ctx.supabase,
-      row,
-      product.id,
-      variantId,
-      ctx.userId,
-    );
+    await syncInventory(ctx.supabase, row, product.id, variantId, ctx.userId);
   }
 
   if (input.importBatchId) {
@@ -812,9 +795,7 @@ export async function commitCatalogImport(
   await recordActivity(ctx, {
     action: "CATALOG_IMPORT_COMMITTED",
     entityType: "import_batch",
-    ...(input.importBatchId
-      ? { entityId: input.importBatchId }
-      : {}),
+    ...(input.importBatchId ? { entityId: input.importBatchId } : {}),
     entityName: input.filename,
     metadata: {
       total: normalized.length,

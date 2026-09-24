@@ -1693,6 +1693,7 @@ export type Database = {
           id: string;
           product_id: string;
           variant_id: string | null;
+          variant_key: string;
           wishlist_id: string;
         };
         Insert: {
@@ -1700,6 +1701,7 @@ export type Database = {
           id?: string;
           product_id: string;
           variant_id?: string | null;
+          variant_key?: never;
           wishlist_id: string;
         };
         Update: {
@@ -1707,6 +1709,7 @@ export type Database = {
           id?: string;
           product_id?: string;
           variant_id?: string | null;
+          variant_key?: never;
           wishlist_id?: string;
         };
         Relationships: [

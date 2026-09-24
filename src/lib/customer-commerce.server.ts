@@ -366,7 +366,7 @@ export async function wishlist(
       .from("wishlist_items")
       .upsert(
         { wishlist_id: list.id, product_id: productId, variant_id: variantId ?? null },
-        { onConflict: "wishlist_id,product_id,variant_id" },
+        { onConflict: "wishlist_id,product_id,variant_key" },
       );
     if (result.error) throw new Error("WISHLIST_WRITE_FAILED");
     await auditCommerceMutation(admin, {

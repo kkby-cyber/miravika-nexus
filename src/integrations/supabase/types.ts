@@ -1692,18 +1692,21 @@ export type Database = {
           created_at: string;
           id: string;
           product_id: string;
+          variant_id: string | null;
           wishlist_id: string;
         };
         Insert: {
           created_at?: string;
           id?: string;
           product_id: string;
+          variant_id?: string | null;
           wishlist_id: string;
         };
         Update: {
           created_at?: string;
           id?: string;
           product_id?: string;
+          variant_id?: string | null;
           wishlist_id?: string;
         };
         Relationships: [
@@ -1712,6 +1715,13 @@ export type Database = {
             columns: ["product_id"];
             isOneToOne: false;
             referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "wishlist_items_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
             referencedColumns: ["id"];
           },
           {

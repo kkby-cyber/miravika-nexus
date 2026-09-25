@@ -72,6 +72,8 @@ export const Route = createFileRoute("/api/public/cart")({
         const customer = await authenticatedCustomer(request);
         if (request.headers.get("authorization") && !customer)
           return fail("UNAUTHORIZED", "The supplied session is invalid.", 401);
+        if (body.action === "merge" && !customer)
+          return fail("UNAUTHORIZED", "Authentication is required to merge a guest cart.", 401);
         const token = customer
           ? null
           : (guestToken(request) ?? (body.action === "merge" ? body.guest_token : newGuestToken()));
@@ -95,6 +97,7 @@ export const Route = createFileRoute("/api/public/cart")({
             "PRODUCT_UNAVAILABLE",
             "OUT_OF_STOCK",
             "INVALID_QUANTITY",
+            "CART_NOT_ACTIVE",
             "CART_ITEM_NOT_FOUND",
             "GUEST_CART_TOKEN_REQUIRED",
           ];

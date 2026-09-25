@@ -6,6 +6,11 @@ import {
   markOrderPaymentFailed,
   releaseOrderInventory,
 } from "@/lib/order-fulfilment.server";
+import {
+  isCapturedPaymentStatus,
+  paymentMatchesOrder,
+  shouldReleaseFailedPayment,
+} from "@/lib/payment-state";
 
 type RazorpayEntity = {
   id?: string;
@@ -13,6 +18,8 @@ type RazorpayEntity = {
   amount?: number;
   method?: string;
   status?: string;
+  currency?: string;
+  captured?: boolean;
   payment_id?: string;
 };
 
@@ -55,6 +62,7 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
           event_id: deliveryId,
           provider: "razorpay",
           event_type: body.event,
+          payment_id: body.payload?.payment?.entity?.id ?? null,
           signature_verified: true,
           processed: false,
           payload: JSON.parse(raw),
@@ -68,13 +76,14 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
             .maybeSingle();
           if (existingError)
             return fail("WEBHOOK_UNAVAILABLE", "Webhook processing will be retried.", 503);
-          if (!existing?.processed)
-            return fail("WEBHOOK_IN_PROGRESS", "Webhook processing will be retried.", 503);
-          logEvent("info", "webhook_duplicate_ignored", { event: body.event });
-          return new Response(JSON.stringify({ success: true, data: { duplicate: true } }), {
-            status: 200,
-            headers: { "content-type": "application/json" },
-          });
+          if (existing?.processed) {
+            logEvent("info", "webhook_duplicate_ignored", { event: body.event });
+            return new Response(JSON.stringify({ success: true, data: { duplicate: true } }), {
+              status: 200,
+              headers: { "content-type": "application/json" },
+            });
+          }
+          logEvent("info", "webhook_retry_resumed", { event: body.event, event_id: deliveryId });
         }
         if (insertError) {
           logEvent("error", "webhook_persistence_failed", { event: body.event });
@@ -89,7 +98,9 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
         if (razorpayOrderId) {
           const { data, error } = await supabaseAdmin
             .from("orders")
-            .select("id, grand_total")
+            .select(
+              "id, grand_total, currency, email, payment_status, inventory_finalized, razorpay_order_id",
+            )
             .eq("razorpay_order_id", razorpayOrderId)
             .maybeSingle();
           if (error)
@@ -101,30 +112,63 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
           order = data;
         }
 
+        const paymentEvent = ["payment.captured", "order.paid", "payment.failed"].includes(
+          body.event,
+        );
+        if (!order && paymentEvent) {
+          return fail(
+            "WEBHOOK_UNAVAILABLE",
+            "The local order is not available yet; webhook processing will be retried.",
+            503,
+          );
+        }
+
         if (order) {
           switch (body.event) {
             case "payment.captured":
             case "order.paid": {
-              if (paymentEntity?.amount != null) {
-                const expected = Math.round(Number(order.grand_total) * 100);
-                if (expected !== paymentEntity.amount) {
-                  logEvent("error", "webhook_amount_mismatch", {
-                    order_id: order.id,
-                    expected_amount: expected,
-                    received_amount: paymentEntity.amount,
-                  });
-                  return fail(
-                    "WEBHOOK_AMOUNT_MISMATCH",
-                    "Webhook payment amount does not match the order total.",
-                    400,
-                  );
-                }
+              if (
+                !paymentEntity?.id ||
+                paymentEntity.order_id !== razorpayOrderId ||
+                (orderEntity?.id && orderEntity.id !== razorpayOrderId)
+              ) {
+                return fail("WEBHOOK_INVALID", "Captured payment identity is incomplete.", 422);
+              }
+              if (
+                !isCapturedPaymentStatus(paymentEntity.status) ||
+                paymentEntity.captured !== true
+              ) {
+                return fail("WEBHOOK_PAYMENT_NOT_CAPTURED", "Payment is not captured.", 409);
+              }
+              if (
+                !paymentMatchesOrder({
+                  providerOrderId: paymentEntity.order_id,
+                  providerPaymentId: paymentEntity.id,
+                  amount: paymentEntity.amount ?? 0,
+                  currency: paymentEntity.currency ?? "",
+                  expectedOrderId: order.razorpay_order_id ?? razorpayOrderId ?? "",
+                  expectedAmount: Math.round(Number(order.grand_total) * 100),
+                  expectedCurrency: order.currency,
+                })
+              ) {
+                logEvent("error", "webhook_payment_identity_mismatch", {
+                  order_id: order.id,
+                  expected_amount: Math.round(Number(order.grand_total) * 100),
+                  received_amount: paymentEntity.amount ?? null,
+                });
+                return fail(
+                  "WEBHOOK_AMOUNT_MISMATCH",
+                  "Webhook payment amount or currency does not match the order.",
+                  400,
+                );
               }
               const paid = await markOrderPaid(supabaseAdmin, {
                 orderId: order.id,
-                razorpayPaymentId: paymentEntity?.id ?? "",
-                razorpayOrderId: razorpayOrderId!,
-                method: paymentEntity?.method ?? null,
+                razorpayPaymentId: paymentEntity.id,
+                razorpayOrderId: paymentEntity.order_id,
+                providerAmountPaise: paymentEntity.amount!,
+                currency: paymentEntity.currency!,
+                method: paymentEntity.method ?? null,
                 signatureVerified: true,
               });
               if (!paid.ok) {
@@ -132,24 +176,25 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
                   order_id: order.id,
                   reason: paid.reason,
                 });
-                return fail(
-                  "PAYMENT_PROCESSING_FAILED",
-                  "Payment processing will be retried.",
-                  503,
-                );
+                return paid.reason === "PAYMENT_ID_MISMATCH"
+                  ? fail("PAYMENT_ID_MISMATCH", "Payment identity did not match the order.", 409)
+                  : fail("PAYMENT_PROCESSING_FAILED", "Payment processing will be retried.", 503);
               }
               // Fulfilment is best-effort: a courier outage must not fail the webhook.
               try {
                 const { createShipmentForOrder } = await import("@/lib/shipment.server");
                 await createShipmentForOrder(supabaseAdmin, order.id);
-              } catch (e) {
+              } catch {
                 logEvent("error", "shipment_autocreate_failed", { order_id: order.id });
               }
               break;
             }
             case "payment.failed": {
+              // A delayed failure event must not undo a successful capture or
+              // release a cart claimed by a later checkout attempt.
+              if (!shouldReleaseFailedPayment(order)) break;
               const released = await releaseOrderInventory(supabaseAdmin, order.id, "FAILED");
-              if (released && !released.ok)
+              if (!released.ok)
                 return fail("WEBHOOK_UNAVAILABLE", "Webhook processing will be retried.", 503);
               const failed = await markOrderPaymentFailed(
                 supabaseAdmin,
@@ -158,16 +203,19 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
               );
               if (!failed.ok)
                 return fail("WEBHOOK_UNAVAILABLE", "Webhook processing will be retried.", 503);
-              const { error: notificationError } = await supabaseAdmin
-                .from("notifications")
-                .insert({
+              if (failed.duplicate) break;
+              const { error: notificationError } = await supabaseAdmin.from("notifications").upsert(
+                {
                   type: "payment_failed",
-                  recipient: "",
+                  recipient: order.email,
                   order_id: order.id,
                   subject: "Payment failed",
                   status: "QUEUED",
-                });
-              if (notificationError)
+                  dedupe_key: `payment-failed:${order.id}`,
+                },
+                { onConflict: "dedupe_key" },
+              );
+              if (notificationError && notificationError.code !== "23505")
                 return fail("WEBHOOK_UNAVAILABLE", "Webhook processing will be retried.", 503);
               break;
             }

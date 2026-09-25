@@ -31,6 +31,41 @@ export function validateRefundAmount(
   };
 }
 
+export function isCapturedPaymentStatus(status: string | null | undefined) {
+  return status === "captured";
+}
+
+export function paymentMatchesOrder(input: {
+  providerOrderId: string;
+  providerPaymentId: string;
+  amount: number;
+  currency: string;
+  expectedOrderId: string;
+  expectedPaymentId?: string;
+  expectedAmount: number;
+  expectedCurrency: string;
+}) {
+  return (
+    input.providerOrderId === input.expectedOrderId &&
+    input.providerPaymentId.length > 0 &&
+    (!input.expectedPaymentId || input.providerPaymentId === input.expectedPaymentId) &&
+    Number.isInteger(input.amount) &&
+    input.amount > 0 &&
+    input.amount === input.expectedAmount &&
+    input.currency === input.expectedCurrency
+  );
+}
+
+export function shouldReleaseFailedPayment(order: {
+  payment_status: string;
+  inventory_finalized: boolean;
+}) {
+  return (
+    !order.inventory_finalized &&
+    !["PAID", "PARTIALLY_REFUNDED", "REFUNDED"].includes(order.payment_status)
+  );
+}
+
 export function paymentStatusAfterRefund(
   capturedAmount: number,
   refundedAmount: number,

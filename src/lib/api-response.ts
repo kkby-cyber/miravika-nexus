@@ -18,7 +18,8 @@ function corsHeaders(origin: string | null) {
     vary: "Origin",
     "access-control-expose-headers": "x-request-id",
     "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
-    "access-control-allow-headers": "content-type,authorization,apikey,x-request-id",
+    "access-control-allow-headers":
+      "content-type,authorization,apikey,x-request-id,x-cart-token,x-idempotency-key",
   };
 }
 

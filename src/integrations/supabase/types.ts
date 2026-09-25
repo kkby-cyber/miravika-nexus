@@ -208,6 +208,7 @@ export type Database = {
       };
       carts: {
         Row: {
+          checkout_claim_id: string | null;
           coupon_code: string | null;
           created_at: string;
           id: string;
@@ -217,6 +218,7 @@ export type Database = {
           user_id: string | null;
         };
         Insert: {
+          checkout_claim_id?: string | null;
           coupon_code?: string | null;
           created_at?: string;
           id?: string;
@@ -226,6 +228,7 @@ export type Database = {
           user_id?: string | null;
         };
         Update: {
+          checkout_claim_id?: string | null;
           coupon_code?: string | null;
           created_at?: string;
           id?: string;
@@ -523,6 +526,7 @@ export type Database = {
         Row: {
           channel: string;
           created_at: string;
+          dedupe_key: string | null;
           error: string | null;
           id: string;
           order_id: string | null;
@@ -537,6 +541,7 @@ export type Database = {
         Insert: {
           channel?: string;
           created_at?: string;
+          dedupe_key?: string | null;
           error?: string | null;
           id?: string;
           order_id?: string | null;
@@ -551,6 +556,7 @@ export type Database = {
         Update: {
           channel?: string;
           created_at?: string;
+          dedupe_key?: string | null;
           error?: string | null;
           id?: string;
           order_id?: string | null;
@@ -683,6 +689,12 @@ export type Database = {
       orders: {
         Row: {
           billing_address: Json;
+          cart_cleared_at: string | null;
+          cart_cleanup_attempts: number;
+          cart_cleanup_last_error: string | null;
+          cart_cleanup_status: string;
+          cart_claim_id: string | null;
+          cart_id: string | null;
           cancelled_at: string | null;
           coupon_code: string | null;
           created_at: string;
@@ -718,6 +730,12 @@ export type Database = {
         };
         Insert: {
           billing_address?: Json;
+          cart_cleared_at?: string | null;
+          cart_cleanup_attempts?: number;
+          cart_cleanup_last_error?: string | null;
+          cart_cleanup_status?: string;
+          cart_claim_id?: string | null;
+          cart_id?: string | null;
           cancelled_at?: string | null;
           coupon_code?: string | null;
           created_at?: string;
@@ -753,6 +771,12 @@ export type Database = {
         };
         Update: {
           billing_address?: Json;
+          cart_cleared_at?: string | null;
+          cart_cleanup_attempts?: number;
+          cart_cleanup_last_error?: string | null;
+          cart_cleanup_status?: string;
+          cart_claim_id?: string | null;
+          cart_id?: string | null;
           cancelled_at?: string | null;
           coupon_code?: string | null;
           created_at?: string;
@@ -788,7 +812,14 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "orders_shipping_method_id_fkey";
+            foreignKeyName: "orders_cart_id_fkey",
+            columns: ["cart_id"],
+            isOneToOne: false,
+            referencedRelation: "carts",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "orders_shipping_method_id_fkey",
             columns: ["shipping_method_id"];
             isOneToOne: false;
             referencedRelation: "shipping_methods";
@@ -1764,6 +1795,11 @@ export type Database = {
     Functions: {
       can_manage_catalog: { Args: { _user_id: string }; Returns: boolean };
       can_manage_orders: { Args: { _user_id: string }; Returns: boolean };
+      claim_checkout_cart: {
+        Args: { _cart_id: string; _session_token: string; _user_id: string };
+        Returns: Json;
+      };
+      clear_order_cart: { Args: { _order_id: string }; Returns: Json };
       confirm_order_paid: {
         Args: { _method: string | null; _order_id: string; _razorpay_payment_id: string };
         Returns: Json;
@@ -1811,10 +1847,28 @@ export type Database = {
         };
         Returns: Json;
       };
+      release_checkout_cart: {
+        Args: {
+          _cart_id: string;
+          _checkout_claim_id: string;
+          _session_token: string;
+          _user_id: string;
+        };
+        Returns: boolean;
+      };
       release_inventory: {
         Args: { _qty: number; _reference_id: string; _sku: string };
         Returns: boolean;
       };
+      release_order_cart_checkout: { Args: { _order_id: string }; Returns: boolean };
+      release_order_inventory: {
+        Args: {
+          _next_payment_status: Database["public"]["Enums"]["payment_status"];
+          _order_id: string;
+        };
+        Returns: Json;
+      };
+      redeem_order_coupon: { Args: { _order_id: string }; Returns: Json };
       reserve_inventory: {
         Args: { _qty: number; _reference_id: string; _sku: string };
         Returns: boolean;

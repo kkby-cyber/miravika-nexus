@@ -4,6 +4,7 @@ import { ok, fail, preflight, logEvent } from "@/lib/api-response";
 import { verifyPaymentSignature, fetchRazorpayPayment } from "@/lib/razorpay.server";
 import { markOrderPaid } from "@/lib/order-fulfilment.server";
 import { enforceRateLimit } from "@/lib/rate-limit.server";
+import { isCapturedPaymentStatus, paymentMatchesOrder } from "@/lib/payment-state";
 
 const schema = z.object({
   razorpay_order_id: z.string().min(4).max(80),
@@ -60,18 +61,29 @@ export const Route = createFileRoute("/api/public/payments/verify")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: order, error: orderError } = await supabaseAdmin
           .from("orders")
-          .select("id, order_number, grand_total, payment_status")
+          .select("id, order_number, grand_total, currency, payment_status, razorpay_order_id")
           .eq("razorpay_order_id", body.razorpay_order_id)
           .maybeSingle();
         if (orderError) return fail("ORDER_UNAVAILABLE", "The order could not be verified.", 503);
         if (!order) return fail("NOT_FOUND", "Order not found.", 404);
 
-        if (Math.round(Number(order.grand_total) * 100) !== payment.amount) {
-          logEvent("error", "payment_amount_mismatch", { order_id: order.id });
+        if (
+          !paymentMatchesOrder({
+            providerOrderId: payment.order_id,
+            providerPaymentId: payment.id,
+            amount: payment.amount,
+            currency: payment.currency,
+            expectedOrderId: order.razorpay_order_id ?? "",
+            expectedPaymentId: body.razorpay_payment_id,
+            expectedAmount: Math.round(Number(order.grand_total) * 100),
+            expectedCurrency: order.currency,
+          })
+        ) {
+          logEvent("error", "payment_identity_or_amount_mismatch", { order_id: order.id });
           return fail("AMOUNT_MISMATCH", "Payment amount did not match the order.", 409);
         }
 
-        if (!["captured", "authorized"].includes(payment.status)) {
+        if (!isCapturedPaymentStatus(payment.status)) {
           return fail("PAYMENT_NOT_CAPTURED", "This payment has not completed.", 409);
         }
 
@@ -79,6 +91,8 @@ export const Route = createFileRoute("/api/public/payments/verify")({
           orderId: order.id,
           razorpayPaymentId: payment.id,
           razorpayOrderId: payment.order_id,
+          providerAmountPaise: payment.amount,
+          currency: payment.currency,
           method: payment.method ?? null,
           signatureVerified: true,
         });
@@ -96,6 +110,7 @@ export const Route = createFileRoute("/api/public/payments/verify")({
           order_number: order.order_number,
           status: "PAID",
           duplicate: result.duplicate,
+          cart_cleanup_pending: result.cartCleanupPending,
         });
       },
     },

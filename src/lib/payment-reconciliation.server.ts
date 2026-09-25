@@ -1,12 +1,13 @@
 import { logEvent } from "@/lib/api-response";
 import { fetchRazorpayPayment } from "@/lib/razorpay.server";
 import { markOrderPaid } from "@/lib/order-fulfilment.server";
+import { isCapturedPaymentStatus, paymentMatchesOrder } from "@/lib/payment-state";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
 
 export async function getPaymentReconciliationReport(admin: Admin) {
-  const [pending, incomplete, events, payments, processedEvents] = await Promise.all([
+  const [pending, incomplete, events, payments, processedEvents, cleanup] = await Promise.all([
     admin
       .from("payments")
       .select("id, order_id, razorpay_payment_id, amount, status, created_at")
@@ -30,6 +31,13 @@ export async function getPaymentReconciliationReport(admin: Admin) {
       .select("order_id, event_type")
       .eq("processed", true)
       .in("event_type", ["payment.captured", "order.paid"]),
+    admin
+      .from("orders")
+      .select(
+        "id, order_number, cart_id, cart_claim_id, cart_cleanup_status, cart_cleanup_last_error, updated_at",
+      )
+      .eq("payment_status", "PAID")
+      .in("cart_cleanup_status", ["PENDING", "FAILED"]),
   ]);
   const errors = [
     pending.error,
@@ -37,6 +45,7 @@ export async function getPaymentReconciliationReport(admin: Admin) {
     events.error,
     payments.error,
     processedEvents.error,
+    cleanup.error,
   ].filter(Boolean);
   if (errors.length) return { ok: false as const, error: "RECONCILIATION_LOOKUP_FAILED" };
 
@@ -53,6 +62,7 @@ export async function getPaymentReconciliationReport(admin: Admin) {
     pending_payments: pending.data ?? [],
     paid_inventory_incomplete: incomplete.data ?? [],
     unprocessed_events: events.data ?? [],
+    cart_cleanup_pending: cleanup.data ?? [],
     paid_without_processed_event: (payments.data ?? []).filter(
       (payment: { status: string; order_id: string }) =>
         payment.status === "PAID" &&
@@ -69,7 +79,7 @@ export async function getPaymentReconciliationReport(admin: Admin) {
 export async function reconcilePayment(admin: Admin, paymentId: string) {
   const { data: payment, error } = await admin
     .from("payments")
-    .select("id, order_id, razorpay_payment_id, amount")
+    .select("id, order_id, razorpay_order_id, razorpay_payment_id, amount, currency")
     .eq("id", paymentId)
     .maybeSingle();
   if (error) return { ok: false as const, error: "PAYMENT_LOOKUP_FAILED" };
@@ -84,21 +94,39 @@ export async function reconcilePayment(admin: Admin, paymentId: string) {
     return { ok: false as const, error: "RAZORPAY_LOOKUP_FAILED" };
   }
   if (!provider) return { ok: false as const, error: "RAZORPAY_LOOKUP_FAILED" };
-  if (provider.amount !== Math.round(Number(payment.amount) * 100)) {
-    logEvent("error", "reconciliation_amount_mismatch", { payment_id: payment.id });
+  if (
+    !paymentMatchesOrder({
+      providerOrderId: provider.order_id,
+      providerPaymentId: provider.id,
+      amount: provider.amount,
+      currency: provider.currency,
+      expectedOrderId: payment.razorpay_order_id ?? "",
+      expectedPaymentId: payment.razorpay_payment_id,
+      expectedAmount: Math.round(Number(payment.amount) * 100),
+      expectedCurrency: payment.currency,
+    })
+  ) {
+    logEvent("error", "reconciliation_amount_or_currency_mismatch", { payment_id: payment.id });
     return { ok: false as const, error: "PAYMENT_AMOUNT_MISMATCH" };
   }
-  if (!["captured", "authorized"].includes(provider.status)) {
+  if (!isCapturedPaymentStatus(provider.status)) {
     return { ok: true as const, changed: false as const, provider_status: provider.status };
   }
   const result = await markOrderPaid(admin, {
     orderId: payment.order_id,
     razorpayPaymentId: provider.id,
     razorpayOrderId: provider.order_id,
+    providerAmountPaise: provider.amount,
+    currency: provider.currency,
     method: provider.method ?? null,
     signatureVerified: true,
   });
   return result.ok
-    ? { ok: true as const, changed: !result.duplicate, provider_status: provider.status }
+    ? {
+        ok: true as const,
+        changed: !result.duplicate,
+        provider_status: provider.status,
+        cart_cleanup_pending: result.cartCleanupPending,
+      }
     : { ok: false as const, error: result.reason };
 }

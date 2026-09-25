@@ -386,15 +386,19 @@ export async function createShipmentForOrder(
     }
   }
 
-  await admin.from("notifications").insert({
-    type: "shipment_created",
-    channel: "email",
-    recipient: order.email,
-    order_id: orderId,
-    subject: `Your MIRAVIKA order ${order.order_number} is on its way`,
-    status: "QUEUED",
-    payload: { awb: shipment.awb_code, courier: shipment.courier_name },
-  });
+  await admin.from("notifications").upsert(
+    {
+      type: "shipment_created",
+      channel: "email",
+      recipient: order.email,
+      order_id: orderId,
+      subject: `Your MIRAVIKA order ${order.order_number} is on its way`,
+      status: "QUEUED",
+      dedupe_key: `shipment-created:${orderId}`,
+      payload: { awb: shipment.awb_code, courier: shipment.courier_name },
+    },
+    { onConflict: "dedupe_key" },
+  );
 
   logEvent("info", "shipment_ready", { order_id: orderId, shipment_id: shipment.id });
   const { data: finalRow } = await admin

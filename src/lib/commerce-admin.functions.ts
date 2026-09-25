@@ -75,3 +75,8 @@ export const reconcilePayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { paymentId: string }) => data)
   .handler(async ({ data, context }) => srv.reconcilePaymentById(context, data.paymentId));
+
+export const retryOrderCartCleanup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { orderId: string }) => data)
+  .handler(async ({ data, context }) => srv.adminRetryOrderCartCleanup(context, data.orderId));

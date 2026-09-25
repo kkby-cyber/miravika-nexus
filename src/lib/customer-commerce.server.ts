@@ -20,12 +20,54 @@ export function newGuestToken() {
   return `${crypto.randomUUID().replaceAll("-", "")}${crypto.randomUUID().replaceAll("-", "")}`;
 }
 
-async function cartFor(admin: Admin, customerId: string | null, guestToken: string | null) {
-  let query = admin.from("carts").select("*").eq("status", "ACTIVE");
+function assertMutableCart(cart: Admin) {
+  if (cart.status !== "ACTIVE") throw new Error("CART_NOT_ACTIVE");
+}
+
+async function findCart(
+  admin: Admin,
+  customerId: string | null,
+  guestToken: string | null,
+  status: "ACTIVE" | "CHECKOUT" | "CONVERTED" | "MERGED",
+) {
+  let query = admin.from("carts").select("*").eq("status", status);
   query = customerId ? query.eq("user_id", customerId) : query.eq("session_token", guestToken);
-  const { data, error } = await query.maybeSingle();
+  const { data, error } = await query
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
   if (error) throw new Error("CART_LOOKUP_FAILED");
-  if (data) return data;
+  return data;
+}
+
+async function cartFor(admin: Admin, customerId: string | null, guestToken: string | null) {
+  if (!customerId && !validGuestToken(guestToken)) throw new Error("GUEST_CART_TOKEN_REQUIRED");
+
+  const active = await findCart(admin, customerId, guestToken, "ACTIVE");
+  if (active) return active;
+
+  // Do not create a replacement cart while checkout owns the current one. This
+  // prevents a refresh during payment from resurrecting a second active cart.
+  const checkingOut = await findCart(admin, customerId, guestToken, "CHECKOUT");
+  if (checkingOut) return checkingOut;
+
+  // session_token is unique. Reuse a terminal row instead of attempting to
+  // insert a second guest cart, but only after no newer checkout is in progress.
+  const reusable =
+    (await findCart(admin, customerId, guestToken, "CONVERTED")) ??
+    (await findCart(admin, customerId, guestToken, "MERGED"));
+  if (reusable) {
+    const { data: reset, error: resetError } = await admin
+      .from("carts")
+      .update({ status: "ACTIVE", checkout_claim_id: null, coupon_code: null })
+      .eq("id", reusable.id)
+      .in("status", ["CONVERTED", "MERGED"])
+      .select("*")
+      .single();
+    if (resetError || !reset) throw new Error("CART_CREATE_FAILED");
+    return reset;
+  }
+
   const { data: created, error: createError } = await admin
     .from("carts")
     .insert({ user_id: customerId, session_token: customerId ? null : guestToken })
@@ -44,7 +86,126 @@ async function cartView(admin: Admin, cart: Admin) {
     .eq("cart_id", cart.id)
     .order("created_at");
   if (error) throw new Error("CART_ITEMS_LOOKUP_FAILED");
-  return { cart, items: data ?? [] };
+  const publicCart = { ...cart };
+  delete publicCart.checkout_claim_id;
+  return { cart: publicCart, items: data ?? [] };
+}
+
+/**
+ * Claims the caller's current server cart for checkout. No cart identifier is
+ * accepted from the browser; ownership is derived from the bearer identity or
+ * the opaque guest token and checked again by the database RPC.
+ */
+export async function claimCartForCheckout(
+  admin: Admin,
+  customerId: string | null,
+  guestToken: string | null,
+) {
+  const cart = await cartFor(admin, customerId, guestToken);
+  if (cart.status !== "ACTIVE") throw new Error("CART_CHECKOUT_IN_PROGRESS");
+
+  const { data, error } = await admin.rpc("claim_checkout_cart", {
+    _cart_id: cart.id,
+    _user_id: customerId,
+    _session_token: guestToken,
+  });
+  if (error) throw new Error("CART_CLAIM_FAILED");
+  if (!data?.ok || !data.checkout_claim_id) throw new Error(data?.error ?? "CART_NOT_AVAILABLE");
+  return { cartId: cart.id, checkoutClaimId: String(data.checkout_claim_id) };
+}
+
+export async function releaseCartClaim(
+  admin: Admin,
+  customerId: string | null,
+  guestToken: string | null,
+  cartId: string,
+  checkoutClaimId: string,
+) {
+  const { data, error } = await admin.rpc("release_checkout_cart", {
+    _cart_id: cartId,
+    _checkout_claim_id: checkoutClaimId,
+    _user_id: customerId,
+    _session_token: guestToken,
+  });
+  if (error || data !== true) throw new Error("CART_RELEASE_FAILED");
+}
+
+/** Loads SKU/quantity pairs exclusively from the exact claimed cart. */
+export async function loadAuthoritativeCartLines(
+  admin: Admin,
+  cartId: string,
+  checkoutClaimId: string,
+) {
+  const { data: cart, error: cartError } = await admin
+    .from("carts")
+    .select("status, checkout_claim_id")
+    .eq("id", cartId)
+    .maybeSingle();
+  if (cartError || cart?.status !== "CHECKOUT" || cart.checkout_claim_id !== checkoutClaimId)
+    throw new Error("CART_CLAIM_MISMATCH");
+
+  const { data, error } = await admin
+    .from("cart_items")
+    .select("product_id, variant_id, quantity, products!inner(sku, status, deleted_at, is_visible)")
+    .eq("cart_id", cartId)
+    .order("created_at");
+  if (error) throw new Error("CART_ITEMS_LOOKUP_FAILED");
+
+  const rows = (data ?? []) as unknown as Array<{
+    product_id: string;
+    variant_id: string | null;
+    quantity: number;
+    products: {
+      sku: string;
+      status: string;
+      deleted_at: string | null;
+      is_visible: boolean;
+    } | null;
+  }>;
+  const variantIds = [
+    ...new Set(rows.map((row) => row.variant_id).filter((id): id is string => Boolean(id))),
+  ];
+  const { data: variantRows, error: variantError } = variantIds.length
+    ? await admin
+        .from("product_variants")
+        .select("id, product_id, sku, status")
+        .in("id", variantIds)
+    : { data: [], error: null };
+  if (variantError) throw new Error("CART_VARIANTS_LOOKUP_FAILED");
+  const variants = new Map(
+    (
+      (variantRows ?? []) as Array<{ id: string; product_id: string; sku: string; status: string }>
+    ).map((variant) => [variant.id, variant]),
+  );
+
+  const quantities = new Map<string, number>();
+  for (const row of rows) {
+    const product = row.products;
+    const variant = row.variant_id ? variants.get(row.variant_id) : null;
+    if (
+      !product ||
+      product.status !== "ACTIVE" ||
+      product.deleted_at ||
+      product.is_visible === false
+    ) {
+      throw new Error("PRODUCT_UNAVAILABLE");
+    }
+    if (
+      row.variant_id &&
+      (!variant || variant.product_id !== row.product_id || variant.status !== "ACTIVE")
+    ) {
+      throw new Error("PRODUCT_UNAVAILABLE");
+    }
+    const sku = variant?.sku ?? product.sku;
+    if (!sku || !Number.isInteger(row.quantity) || row.quantity <= 0) {
+      throw new Error("INVALID_CART_ITEM");
+    }
+    quantities.set(sku, (quantities.get(sku) ?? 0) + row.quantity);
+  }
+
+  const items = [...quantities.entries()].map(([sku, quantity]) => ({ sku, quantity }));
+  if (!items.length) throw new Error("CART_EMPTY");
+  return items;
 }
 
 async function resolveCartItem(admin: Admin, sku: string, quantity: number) {
@@ -68,6 +229,7 @@ export async function addCartItem(
 ) {
   if (!Number.isInteger(input.quantity) || input.quantity <= 0) throw new Error("INVALID_QUANTITY");
   const cart = await cartFor(admin, customerId, guestToken);
+  assertMutableCart(cart);
   const line = await resolveCartItem(admin, input.sku, input.quantity);
   const { data: existing } = await admin
     .from("cart_items")
@@ -104,6 +266,7 @@ export async function updateCartItem(
 ) {
   if (!Number.isInteger(quantity) || quantity <= 0) throw new Error("INVALID_QUANTITY");
   const cart = await cartFor(admin, owner.customerId, owner.guestToken);
+  assertMutableCart(cart);
   const { data: item, error } = await admin
     .from("cart_items")
     .select("id, product_id, variant_id")
@@ -128,6 +291,7 @@ export async function removeCartItem(
   owner: { customerId: string | null; guestToken: string | null },
 ) {
   const cart = await cartFor(admin, owner.customerId, owner.guestToken);
+  assertMutableCart(cart);
   const { error } = await admin
     .from("cart_items")
     .delete()
@@ -142,6 +306,7 @@ export async function clearCart(
   owner: { customerId: string | null; guestToken: string | null },
 ) {
   const cart = await cartFor(admin, owner.customerId, owner.guestToken);
+  assertMutableCart(cart);
   const { error } = await admin.from("cart_items").delete().eq("cart_id", cart.id);
   if (error) throw new Error("CART_CLEAR_FAILED");
   return cartView(admin, cart);
@@ -151,6 +316,8 @@ export async function mergeGuestCart(admin: Admin, customerId: string, guestToke
   if (!validGuestToken(guestToken)) throw new Error("GUEST_CART_TOKEN_REQUIRED");
   const guest = await cartFor(admin, null, guestToken);
   const customer = await cartFor(admin, customerId, null);
+  assertMutableCart(guest);
+  assertMutableCart(customer);
   const { data: items, error } = await admin.from("cart_items").select("*").eq("cart_id", guest.id);
   if (error) throw new Error("CART_MERGE_LOOKUP_FAILED");
   for (const item of items ?? []) {
@@ -183,7 +350,16 @@ export async function mergeGuestCart(admin: Admin, customerId: string, guestToke
       });
     }
   }
-  await admin.from("carts").update({ status: "MERGED" }).eq("id", guest.id);
+  const { error: guestItemsDeleteError } = await admin
+    .from("cart_items")
+    .delete()
+    .eq("cart_id", guest.id);
+  if (guestItemsDeleteError) throw new Error("CART_MERGE_DELETE_FAILED");
+  const { error: guestStatusError } = await admin
+    .from("carts")
+    .update({ status: "MERGED", checkout_claim_id: null })
+    .eq("id", guest.id);
+  if (guestStatusError) throw new Error("CART_MERGE_FAILED");
   return cartView(admin, customer);
 }
 

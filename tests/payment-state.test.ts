@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import { createHmac } from "node:crypto";
 import {
   canTransitionPaymentStatus,
+  isCapturedPaymentStatus,
+  paymentMatchesOrder,
   paymentStatusAfterRefund,
   refundableAmount,
+  shouldReleaseFailedPayment,
   validateRefundAmount,
 } from "../src/lib/payment-state";
 import { verifyPaymentSignature } from "../src/lib/razorpay.server";
@@ -64,6 +67,43 @@ describe("payment state machine", () => {
 
   it("marks a full refund when the captured amount is exhausted", () => {
     expect(paymentStatusAfterRefund(1000, 1000)).toBe("REFUNDED");
+  });
+
+  it("accepts only a captured provider status", () => {
+    expect(isCapturedPaymentStatus("captured")).toBe(true);
+    expect(isCapturedPaymentStatus("authorized")).toBe(false);
+    expect(isCapturedPaymentStatus("failed")).toBe(false);
+  });
+
+  it("requires provider order, payment, amount, and currency identity", () => {
+    const valid = {
+      providerOrderId: "rz_order",
+      providerPaymentId: "pay_1",
+      amount: 10000,
+      currency: "INR",
+      expectedOrderId: "rz_order",
+      expectedPaymentId: "pay_1",
+      expectedAmount: 10000,
+      expectedCurrency: "INR",
+    };
+    expect(paymentMatchesOrder(valid)).toBe(true);
+    expect(paymentMatchesOrder({ ...valid, providerPaymentId: "" })).toBe(false);
+    expect(paymentMatchesOrder({ ...valid, amount: 9999 })).toBe(false);
+    expect(paymentMatchesOrder({ ...valid, currency: "USD" })).toBe(false);
+    expect(paymentMatchesOrder({ ...valid, providerOrderId: "other" })).toBe(false);
+    expect(paymentMatchesOrder({ ...valid, providerPaymentId: "pay_other" })).toBe(false);
+  });
+
+  it("does not release a delayed failure after payment or refund finalization", () => {
+    expect(shouldReleaseFailedPayment({ payment_status: "PAID", inventory_finalized: true })).toBe(
+      false,
+    );
+    expect(
+      shouldReleaseFailedPayment({ payment_status: "REFUNDED", inventory_finalized: true }),
+    ).toBe(false);
+    expect(
+      shouldReleaseFailedPayment({ payment_status: "PENDING", inventory_finalized: false }),
+    ).toBe(true);
   });
 });
 

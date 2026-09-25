@@ -17,6 +17,7 @@ import {
   reconcilePayment,
 } from "@/lib/payment-reconciliation.server";
 import { cancelOrder } from "@/lib/order-cancellation.server";
+import { retryOrderCartCleanup } from "@/lib/order-fulfilment.server";
 import { reconcileShipment } from "@/lib/shipment-reconciliation.server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -195,6 +196,18 @@ export async function adminCancelOrder(ctx: Ctx, orderId: string, reason?: strin
 export async function getReconciliationReport(ctx: Ctx) {
   await requirePermission(ctx, "orders.view");
   return getPaymentReconciliationReport(await admin());
+}
+
+export async function adminRetryOrderCartCleanup(ctx: Ctx, orderId: string) {
+  await requirePermission(ctx, "orders.edit");
+  const result = await retryOrderCartCleanup(await admin(), orderId);
+  await recordActivity(ctx, {
+    action: result.ok ? "ORDER_CART_CLEANUP_RETRIED" : "ORDER_CART_CLEANUP_RETRY_FAILED",
+    entityType: "order",
+    entityId: orderId,
+    metadata: { error: result.ok ? undefined : result.error },
+  });
+  return result;
 }
 
 export async function reconcilePaymentById(ctx: Ctx, paymentId: string) {

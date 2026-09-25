@@ -108,8 +108,16 @@ export const Route = createFileRoute("/api/public/webhooks/razorpay")({
               if (paymentEntity?.amount != null) {
                 const expected = Math.round(Number(order.grand_total) * 100);
                 if (expected !== paymentEntity.amount) {
-                  logEvent("error", "webhook_amount_mismatch", { order_id: order.id });
-                  break;
+                  logEvent("error", "webhook_amount_mismatch", {
+                    order_id: order.id,
+                    expected_amount: expected,
+                    received_amount: paymentEntity.amount,
+                  });
+                  return fail(
+                    "WEBHOOK_AMOUNT_MISMATCH",
+                    "Webhook payment amount does not match the order total.",
+                    400,
+                  );
                 }
               }
               const paid = await markOrderPaid(supabaseAdmin, {

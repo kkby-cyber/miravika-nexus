@@ -6,6 +6,16 @@ const PRODUCTION_ORIGINS = new Set([
   "https://admin.miravika.com",
 ]);
 
+const ALLOWED_CORS_HEADERS = [
+  "content-type",
+  "authorization",
+  "apikey",
+  "x-request-id",
+  // Lumina sends this server-issued guest cart identity header.
+  "x-cart-token",
+  "x-idempotency-key",
+].join(",");
+
 function corsHeaders(origin: string | null) {
   const developmentOrigin =
     process.env["NODE_ENV"] !== "production" && origin?.startsWith("http://localhost:")
@@ -18,8 +28,7 @@ function corsHeaders(origin: string | null) {
     vary: "Origin",
     "access-control-expose-headers": "x-request-id",
     "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
-    "access-control-allow-headers":
-      "content-type,authorization,apikey,x-request-id,x-cart-token,x-idempotency-key",
+    "access-control-allow-headers": ALLOWED_CORS_HEADERS,
   };
 }
 

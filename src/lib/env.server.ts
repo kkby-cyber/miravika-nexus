@@ -32,7 +32,6 @@ export function validateServerEnv(): void {
     "SHIPROCKET_EMAIL",
     "SHIPROCKET_PASSWORD",
     "SHIPROCKET_PICKUP_PINCODE",
-    "SHIPROCKET_WEBHOOK_TOKEN",
   ];
   const missing = required.filter((name) => !value(name));
   if (missing.length) {

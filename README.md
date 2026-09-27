@@ -1682,6 +1682,86 @@ This project was built with [Lovable](https://lovable.dev).
 
 **Live app**: https://miravika-nexus.lovable.app
 
+## Cloudflare Workers deployment
+
+Nexus builds to a Nitro `cloudflare-module` Worker. The build generates the Wrangler
+config at `.output/server/wrangler.json`; that generated file is the deployment
+source of truth. Do not hand-edit it and do not create a second Wrangler config —
+it is regenerated on every `npm run build` and will drift.
+
+Generated config (from `.output/server/wrangler.json`):
+
+- `name`: `kkby-cyber-miravika-nexus`
+- `main`: `index.mjs`
+- `assets.directory`: `../public` (binding `ASSETS`)
+- `compatibility_date`: `2026-09-27`
+- `compatibility_flags`: `nodejs_compat` (required — the server bundle imports `node:process`)
+- `no_bundle: true` with an ESModule `rules` glob
+
+## Deploy
+
+```bash
+npm run build
+npx --yes wrangler@4.141.0 deploy --config .output/server/wrangler.json
+```
+
+`npm run cf:deploy` runs exactly those two steps. Wrangler is pinned to `4.141.0`
+and invoked via `npx` so no dependency or lockfile change is required.
+
+Authenticate first (required once per machine):
+
+```bash
+npx --yes wrangler@4.141.0 login
+```
+
+Or set `CLOUDFLARE_API_TOKEN` in the environment for CI. Never commit a token.
+
+## Runtime environment
+
+Secrets (set with `wrangler secret put <NAME>`, or in the dashboard under
+Settings → Variables and Secrets). Values are never stored in this repository.
+
+- `SUPABASE_SERVICE_ROLE_KEY` — elevated key, bypasses RLS. Accepts a legacy
+  `service_role` JWT or a new `sb_secret_` key. The client detects the `sb_`
+  prefix and sends the key on the `apikey` header only, because new Supabase keys
+  are opaque strings rather than JWTs.
+- `RAZORPAY_KEY_SECRET`
+- `RAZORPAY_WEBHOOK_SECRET`
+- `SHIPROCKET_PASSWORD`
+- `SHIPROCKET_WEBHOOK_TOKEN`
+- `LOVABLE_API_KEY`
+
+Non-secret variables:
+
+- `SUPABASE_URL`
+- `SUPABASE_PUBLISHABLE_KEY`
+- `RAZORPAY_KEY_ID`
+- `SHIPROCKET_EMAIL`
+- `SHIPROCKET_PICKUP_PINCODE`
+- `SHIPROCKET_PICKUP_LOCATION` (optional, defaults to `Primary`)
+- `LOVABLE_SEND_URL`
+
+`NODE_ENV` is not set at runtime. Vite inlines it as `production` during
+`npm run build`, so the production env gate and the production-only CORS and
+security-header branches are already compiled into the Worker.
+
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` are build-time only; they
+are inlined into the client bundle and are not Worker runtime variables.
+
+`NEXUS_API_URL` / `VITE_NEXUS_API_URL` are only read by `src/lib/nexus.ts`, which
+currently has no importers.
+
+## Custom domain
+
+`api.miravika.com` is not attached by the generated config, and no `routes` entry
+is checked in. After the first successful deploy, attach the domain in the
+Cloudflare dashboard under the Worker → Settings → Domains & Routes → Add →
+Custom domain, or add a `routes` entry with `custom_domain: true` to the Wrangler
+config. The `miravika.com` zone must be active in the same Cloudflare account.
+
+Until the domain is attached, the Worker is only reachable on its
+`workers.dev` subdomain.
+
 ## Build with Lovable
 
 Continue developing this project in the [Lovable editor](https://lovable.dev/projects/8a5c5894-bc49-4945-b000-f5f466c05c83).

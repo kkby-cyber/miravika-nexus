@@ -12,7 +12,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "cf:dev": "npx --yes wrangler@4.141.0 dev --config .output/server/wrangler.json",
+    "cf:deploy": "npm run build && npx --yes wrangler@4.141.0 deploy --config .output/server/wrangler.json"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

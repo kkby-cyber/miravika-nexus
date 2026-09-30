@@ -718,97 +718,21 @@ async function syncInventory(
 
 export async function commitCatalogImport(
   ctx: StaffCtx,
-  input: {
-    filename: string;
-    rows: RawRow[];
-    importBatchId?: string;
-  },
+  input: { importBatchId: string },
 ) {
   await requirePermission(ctx, "products.create");
   await requirePermission(ctx, "inventory.edit");
 
-  const normalized = input.rows
-    .filter((row) => {
-      const values = Object.values(row).map((value) => String(value ?? "").trim());
-
-      return !values.some(
-        (value) =>
-          value === "Your Identifier for a product" ||
-          value === "Title of your product as on Flipkart.com",
-      );
-    })
-    .map((row, index) => normalizeRow(row, index + 2));
-
-  const seen = new Set<string>();
-
-  for (const row of normalized) {
-    if (!row.sku) continue;
-
-    if (seen.has(row.sku)) {
-      row.errors.push(`Duplicate SKU in file: ${row.sku}`);
-    }
-
-    seen.add(row.sku);
-  }
-
-  const invalidRows = normalized.filter((row) => row.errors.length > 0);
-
-  if (invalidRows.length > 0) {
-    throw new Error(`Import blocked: ${invalidRows.length} invalid row(s). Run preview first.`);
-  }
-
-  let created = 0;
-  let updated = 0;
-
-  for (const row of normalized) {
-    const product = await upsertProduct(ctx.supabase, row);
-
-    if (product.created) created += 1;
-    else updated += 1;
-
-    const variantId = await upsertVariant(ctx.supabase, row, product.id);
-
-    await upsertImages(ctx.supabase, row, product.id);
-
-    await syncCollections(ctx.supabase, row, product.id);
-
-    await syncInventory(ctx.supabase, row, product.id, variantId, ctx.userId);
-  }
-
-  if (input.importBatchId) {
-    const { error } = await ctx.supabase
-      .from("import_batches")
-      .update({
-        status: "COMMITTED",
-        total_rows: normalized.length,
-        new_count: created,
-        update_count: updated,
-        duplicate_count: 0,
-        invalid_count: 0,
-        rows: normalized,
-      })
-      .eq("id", input.importBatchId);
-
-    if (error) throw new Error(error.message);
-  }
-
-  await recordActivity(ctx, {
-    action: "CATALOG_IMPORT_COMMITTED",
-    entityType: "import_batch",
-    ...(input.importBatchId ? { entityId: input.importBatchId } : {}),
-    entityName: input.filename,
-    metadata: {
-      total: normalized.length,
-      created,
-      updated,
-    },
+  const { data, error } = await ctx.supabase.rpc("commit_catalog_import", {
+    _batch_id: input.importBatchId,
   });
 
-  return {
-    success: true,
-    filename: input.filename,
-    total: normalized.length,
-    created,
-    updated,
-  };
+  if (error) {
+    throw new Error(error.message || "Catalog import transaction failed.");
+  }
+  if (!data || data.success !== true) {
+    throw new Error("Catalog import did not return a successful result.");
+  }
+
+  return data;
 }

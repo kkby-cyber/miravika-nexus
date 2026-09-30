@@ -266,7 +266,12 @@ function Page() {
   }
 
   async function runCommit() {
-    if (!preview || preview.invalidCount > 0) return;
+    if (!preview || preview.invalidCount > 0 || !preview.importBatchId) return;
+
+    const confirmed = window.confirm(
+      `Commit ${preview.total} products from the saved preview? Products may become active and visible, and supplied stock values may update available inventory.`
+    );
+    if (!confirmed) return;
 
     setError("");
     setIsCommitting(true);
@@ -274,8 +279,6 @@ function Page() {
     try {
       const result = await commitCatalogImport({
         data: {
-          filename: fileName,
-          rows,
           importBatchId: preview.importBatchId,
         },
       });

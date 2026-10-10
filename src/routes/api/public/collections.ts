@@ -29,17 +29,18 @@ export const Route = createFileRoute("/api/public/collections")({
           .is("deleted_at", null)
           .order("position");
 
-if (error) {
-  console.error("[PUBLIC_COLLECTIONS_QUERY_ERROR]", {
-    requestId: request.headers.get("x-request-id"),
-    code: error.code,
-    message: error.message,
-    details: error.details,
-    hint: error.hint,
-  });
+        if (error) {
+          console.error("[PUBLIC_COLLECTIONS_QUERY_ERROR]", {
+            requestId: request.headers.get("x-request-id"),
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+          });
 
-  return fail("COLLECTIONS_UNAVAILABLE", "Could not load collections.", 500);
-}        return ok({ collections: data ?? [] });
+          return fail("COLLECTIONS_UNAVAILABLE", "Could not load collections.", 500);
+        }
+        return ok({ collections: data ?? [] });
       },
     },
   },

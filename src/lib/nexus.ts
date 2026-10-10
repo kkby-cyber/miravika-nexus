@@ -1,12 +1,7 @@
 const NEXUS_API_URL =
-  process.env["NEXUS_API_URL"] ||
-  process.env["VITE_NEXUS_API_URL"] ||
-  "http://localhost:8080";
+  process.env["NEXUS_API_URL"] || process.env["VITE_NEXUS_API_URL"] || "http://localhost:8080";
 
-async function nexusRequest<T>(
-  path: string,
-  init: RequestInit = {},
-): Promise<T> {
+async function nexusRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${NEXUS_API_URL}${path}`, {
     ...init,
     headers: {

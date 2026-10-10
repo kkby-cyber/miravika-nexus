@@ -15,7 +15,9 @@ export const staffHeartbeat = createServerFn({ method: "POST" })
 export const endStaffSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { sessionId: string; reason?: string }) => data)
-  .handler(async ({ data, context }) => srv.endSession(context, data.sessionId, data.reason ?? "logout"));
+  .handler(async ({ data, context }) =>
+    srv.endSession(context, data.sessionId, data.reason ?? "logout"),
+  );
 
 export const revokeStaffSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -67,6 +69,12 @@ export const setRolePermission = createServerFn({ method: "POST" })
 export const searchAuditLog = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (data: { action?: string; actorId?: string; search?: string; fromIso?: string; toIso?: string }) => data,
+    (data: {
+      action?: string;
+      actorId?: string;
+      search?: string;
+      fromIso?: string;
+      toIso?: string;
+    }) => data,
   )
   .handler(async ({ data, context }) => srv.searchAuditLog(context, data));

@@ -151,7 +151,11 @@ function StaffDetailPage() {
                   <div key={a.id} className="flex items-center justify-between gap-4 p-3 text-sm">
                     <span>
                       {actionLabel(a.action)}
-                      {a.entity_name ? ` — ${a.entity_name}` : a.entity_type ? ` — ${a.entity_type}` : ""}
+                      {a.entity_name
+                        ? ` — ${a.entity_name}`
+                        : a.entity_type
+                          ? ` — ${a.entity_type}`
+                          : ""}
                     </span>
                     <span className="shrink-0 text-xs text-muted-foreground">
                       {new Date(a.created_at).toLocaleString("en-IN")}

@@ -57,9 +57,8 @@ function Dashboard() {
         paid: all.filter((o) => o.payment_status === "PAID").length,
         pending: all.filter((o) => o.payment_status === "PENDING").length,
         failed: all.filter((o) => o.payment_status === "FAILED").length,
-        refunded: all.filter((o) =>
-          ["REFUNDED", "PARTIALLY_REFUNDED"].includes(o.payment_status),
-        ).length,
+        refunded: all.filter((o) => ["REFUNDED", "PARTIALLY_REFUNDED"].includes(o.payment_status))
+          .length,
         customers: customers.count ?? 0,
         lowStock: inv.filter(
           (i) => i.available_quantity > 0 && i.available_quantity <= i.low_stock_threshold,
@@ -103,7 +102,10 @@ function Dashboard() {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Recent orders
               </h2>
-              <Link to="/admin/orders" className="text-sm text-muted-foreground hover:text-foreground">
+              <Link
+                to="/admin/orders"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
                 View all
               </Link>
             </div>

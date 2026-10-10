@@ -1,8 +1,4 @@
-import {
-  createStart,
-  createCsrfMiddleware,
-  createMiddleware,
-} from "@tanstack/react-start";
+import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/react-start";
 
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 import { validateServerEnv } from "@/lib/env.server";
@@ -23,10 +19,7 @@ async function applySecurityHeaders(response: Response): Promise<Response> {
   }
 
   if (process.env["NODE_ENV"] === "production") {
-    headers.set(
-      "strict-transport-security",
-      "max-age=31536000; includeSubDomains",
-    );
+    headers.set("strict-transport-security", "max-age=31536000; includeSubDomains");
 
     headers.set(
       "content-security-policy",
@@ -53,32 +46,26 @@ async function applySecurityHeaders(response: Response): Promise<Response> {
   });
 }
 
-const errorMiddleware = createMiddleware().server(
-  async ({ next }) => {
-    try {
-      validateServerEnv();
-      return await next();
-    } catch (error) {
-      if (
-        error != null &&
-        typeof error === "object" &&
-        "statusCode" in error
-      ) {
-        throw error;
-      }
-
-      console.error(error);
-
-      return new Response(renderErrorPage(), {
-        status: 500,
-        headers: {
-          "content-type": "text/html; charset=utf-8",
-          ...securityHeaders,
-        },
-      });
+const errorMiddleware = createMiddleware().server(async ({ next }) => {
+  try {
+    validateServerEnv();
+    return await next();
+  } catch (error) {
+    if (error != null && typeof error === "object" && "statusCode" in error) {
+      throw error;
     }
-  },
-);
+
+    console.error(error);
+
+    return new Response(renderErrorPage(), {
+      status: 500,
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        ...securityHeaders,
+      },
+    });
+  }
+});
 
 // Keep CSRF protection for server functions.
 const csrfMiddleware = createCsrfMiddleware({

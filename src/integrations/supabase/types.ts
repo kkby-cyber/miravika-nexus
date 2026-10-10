@@ -812,14 +812,14 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "orders_cart_id_fkey",
-            columns: ["cart_id"],
-            isOneToOne: false,
-            referencedRelation: "carts",
-            referencedColumns: ["id"],
+            foreignKeyName: "orders_cart_id_fkey";
+            columns: ["cart_id"];
+            isOneToOne: false;
+            referencedRelation: "carts";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "orders_shipping_method_id_fkey",
+            foreignKeyName: "orders_shipping_method_id_fkey";
             columns: ["shipping_method_id"];
             isOneToOne: false;
             referencedRelation: "shipping_methods";

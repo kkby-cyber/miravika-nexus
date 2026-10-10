@@ -716,10 +716,7 @@ async function syncInventory(
   }
 }
 
-export async function commitCatalogImport(
-  ctx: StaffCtx,
-  input: { importBatchId: string },
-) {
+export async function commitCatalogImport(ctx: StaffCtx, input: { importBatchId: string }) {
   await requirePermission(ctx, "products.create");
   await requirePermission(ctx, "inventory.edit");
 

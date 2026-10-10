@@ -5,13 +5,7 @@ import { cn } from "@/lib/utils";
  * Official MIRAVIKA brand mark. The uploaded asset is used as-is — never
  * recoloured, redrawn or stretched (aspect ratio is preserved by `h-auto`).
  */
-export function MiravikaLogo({
-  className,
-  size = 48,
-}: {
-  className?: string;
-  size?: number;
-}) {
+export function MiravikaLogo({ className, size = 48 }: { className?: string; size?: number }) {
   return (
     <img
       src={logo.url}

@@ -82,3 +82,70 @@ describe("incomplete listings", () => {
     );
   });
 });
+
+describe("image URL validation", () => {
+  it("accepts https image links and de-duplicates them", () => {
+    const url = "https://cdn.example.com/products/MIR-EAR-001-1.jpg";
+    const row = normalizeRow(flipkartRow({ "Image URLs": `${url}|${url}` }), 2);
+    expect(row.errors).toEqual([]);
+    expect(row.image_urls).toEqual([url]);
+    expect(row.warnings.join(" ")).not.toMatch(/draft/);
+  });
+
+  it("rejects insecure, relative or malformed image links", () => {
+    for (const bad of ["http://cdn.example.com/a.jpg", "/images/a.jpg", "not a url"]) {
+      const row = normalizeRow(flipkartRow({ "Image URLs": bad }), 2);
+      expect(row.errors.join(" ")).toMatch(/valid https/);
+    }
+  });
+});
+
+describe("catalog import template", () => {
+  it("every template column maps to the intended importer field", async () => {
+    const { readFileSync } = await import("node:fs");
+    const header = readFileSync("docs/catalog-import-template.csv", "utf8").trim().split(",");
+    const sample: Record<string, string> = {
+      "Seller SKU Id": "SKU-X",
+      "Product Title": "Miravika Template Check",
+      Brand: "MIRAVIKA",
+      Category: "earring",
+      "Your Selling Price": "199",
+      MRP: "499",
+      "Your Stock Count": "7",
+      "Image URLs": "https://cdn.example.com/a.jpg|https://cdn.example.com/b.jpg",
+      Description: "Desc",
+      Color: "Gold",
+      Size: "Free",
+      Material: "Alloy",
+      HSN: "71179090",
+      GST: "3",
+      "Weight (g)": "20",
+      Length: "8",
+      Width: "8",
+      Height: "3",
+    };
+    expect(header).toEqual(Object.keys(sample));
+    const row = normalizeRow(sample, 2);
+    expect(row.errors).toEqual([]);
+    expect(row).toMatchObject({
+      sku: "SKU-X",
+      title: "Miravika Template Check",
+      brand: "MIRAVIKA",
+      price: 199,
+      mrp: 499,
+      stock: 7,
+      image_urls: ["https://cdn.example.com/a.jpg", "https://cdn.example.com/b.jpg"],
+      description: "Desc",
+      color: "Gold",
+      size: "Free",
+      material: "Alloy",
+      hsn_code: "71179090",
+      tax_rate: 3,
+      weight_grams: 20,
+      length_cm: 8,
+      width_cm: 8,
+      height_cm: 3,
+    });
+    expect(row.collections).toContain("jewelry-accessories");
+  });
+});

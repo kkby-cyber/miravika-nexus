@@ -11,6 +11,7 @@ import {
 } from "@/lib/customer-commerce.server";
 import { auditCommerceMutation } from "@/lib/commerce-audit.server";
 import { checkoutBodySchema } from "@/lib/checkout-request";
+import { codCheckoutDecision, isCodEnabled } from "@/lib/cod";
 
 export const Route = createFileRoute("/api/public/checkout")({
   server: {
@@ -28,6 +29,12 @@ export const Route = createFileRoute("/api/public/checkout")({
           parsed = checkoutBodySchema.parse(await request.json());
         } catch {
           return fail("INVALID_REQUEST", "Some checkout details are missing or invalid.", 422);
+        }
+
+        const cod = codCheckoutDecision(parsed.payment_method, isCodEnabled());
+        if (!cod.allowed) {
+          logEvent("info", "checkout_cod_refused", { rid, code: cod.code });
+          return fail(cod.code, cod.message, cod.status);
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

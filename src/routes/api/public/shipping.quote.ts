@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { isCodEnabled, storeCodAvailable } from "@/lib/cod";
 import { z } from "zod";
 import { ok, fail, preflight } from "@/lib/api-response";
 import { checkServiceability, getShiprocketConfig } from "@/lib/shiprocket.server";
@@ -125,13 +126,17 @@ export const Route = createFileRoute("/api/public/shipping/quote")({
         const cheapest = [...result.couriers].sort((a, b) => a.rate - b.rate)[0]!;
         return ok({
           serviceable: true,
-          // Customers pay the configured rate; courier cost stays internal.
+          // Customers pay the configured rate; the courier's cost price is internal and is
+          // deliberately not returned to the browser.
           shipping_charge: flatRate,
-          courier_rate: cheapest.rate,
           currency: "INR",
           estimated_days: cheapest.estimated_delivery_days ?? null,
           etd: cheapest.etd ?? null,
-          cod_available: result.couriers.some((c) => c.cod_available),
+          // Store-level COD: false unless COD is enabled for the store (lib/cod.ts).
+          cod_available: storeCodAvailable(
+            isCodEnabled(),
+            result.couriers.some((c) => c.cod_available),
+          ),
           couriers: result.couriers.slice(0, 5).map((c) => ({
             name: c.courier_name,
             estimated_delivery_days: c.estimated_delivery_days,

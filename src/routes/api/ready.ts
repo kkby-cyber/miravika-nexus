@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { logEvent } from "@/lib/api-response";
 
 // Readiness differs from /api/health: it proves the database is reachable and that the
-// server secrets needed for commerce are configured. It reports only booleans — never
-// secret values, connection strings or provider error messages.
+// server secrets needed for commerce are configured. The public response is a single
+// ready/not_ready status; per-check results are logged server-side only.
 function configured(name: string) {
   return Boolean(process.env[name]?.trim());
 }
@@ -45,14 +46,12 @@ export const Route = createFileRoute("/api/ready")({
           razorpay_webhook: configured("RAZORPAY_WEBHOOK_SECRET"),
           shiprocket: configured("SHIPROCKET_EMAIL") && configured("SHIPROCKET_PASSWORD"),
         };
-        const ready = database && checks.supabase_service_role;
+        const ready = Object.values(checks).every(Boolean);
+        // Which dependency failed is operational detail: it goes to the Worker log, never to
+        // an unauthenticated caller.
+        if (!ready) logEvent("error", "readiness_failed", { checks });
         return Response.json(
-          {
-            status: ready ? "ready" : "not_ready",
-            service: "miravika-nexus",
-            checks,
-            timestamp: new Date().toISOString(),
-          },
+          { status: ready ? "ready" : "not_ready", service: "miravika-nexus" },
           { status: ready ? 200 : 503, headers: { "cache-control": "no-store" } },
         );
       },

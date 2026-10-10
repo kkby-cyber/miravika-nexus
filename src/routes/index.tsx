@@ -93,8 +93,16 @@ const endpoints = [
   { method: "GET", path: "/api/public/products", note: "Storefront product listing" },
   { method: "GET", path: "/api/public/products/:slug", note: "Product detail" },
   { method: "GET", path: "/api/public/collections", note: "Collections" },
-  { method: "POST", path: "/api/public/checkout", note: "Validate, reserve stock, create Razorpay order" },
-  { method: "POST", path: "/api/public/payments/verify", note: "Verify Razorpay signature & finalize" },
+  {
+    method: "POST",
+    path: "/api/public/checkout",
+    note: "Validate, reserve stock, create Razorpay order",
+  },
+  {
+    method: "POST",
+    path: "/api/public/payments/verify",
+    note: "Verify Razorpay signature & finalize",
+  },
   { method: "POST", path: "/api/public/webhooks/razorpay", note: "Signed webhook ingestion" },
 ];
 
@@ -138,10 +146,9 @@ function Index() {
             MIRAVIKA Commerce Core
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg">
-            The standalone production backend for MIRAVIKA — catalog, inventory
-            reservation, checkout, Razorpay payments, orders, coupons, customer
-            accounts, and a staff admin console. Built API-first, ready to power
-            the storefront.
+            The standalone production backend for MIRAVIKA — catalog, inventory reservation,
+            checkout, Razorpay payments, orders, coupons, customer accounts, and a staff admin
+            console. Built API-first, ready to power the storefront.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
@@ -166,15 +173,10 @@ function Index() {
         <h2 className="text-xl font-semibold tracking-tight">What this backend runs</h2>
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {modules.map((m) => (
-            <div
-              key={m.title}
-              className="rounded-lg border border-border bg-card p-5 shadow-sm"
-            >
+            <div key={m.title} className="rounded-lg border border-border bg-card p-5 shadow-sm">
               <m.icon className="h-5 w-5 text-gold" />
               <h3 className="mt-3 text-sm font-semibold">{m.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                {m.body}
-              </p>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{m.body}</p>
             </div>
           ))}
         </div>
@@ -193,9 +195,7 @@ function Index() {
                 <tr className="border-b border-border bg-muted/50">
                   <th className="px-4 py-3 font-medium">Method</th>
                   <th className="px-4 py-3 font-medium">Endpoint</th>
-                  <th className="hidden px-4 py-3 font-medium md:table-cell">
-                    Purpose
-                  </th>
+                  <th className="hidden px-4 py-3 font-medium md:table-cell">Purpose</th>
                 </tr>
               </thead>
               <tbody>

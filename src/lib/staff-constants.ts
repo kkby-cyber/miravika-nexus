@@ -27,12 +27,29 @@ export const ROLE_LABELS: Record<StaffRole, string> = {
 };
 
 export const PERMISSION_GROUPS: Array<{ group: string; permissions: string[] }> = [
-  { group: "Products", permissions: ["products.view", "products.create", "products.edit", "products.delete"] },
-  { group: "Collections", permissions: ["collections.view", "collections.create", "collections.edit", "collections.delete"] },
+  {
+    group: "Products",
+    permissions: ["products.view", "products.create", "products.edit", "products.delete"],
+  },
+  {
+    group: "Collections",
+    permissions: [
+      "collections.view",
+      "collections.create",
+      "collections.edit",
+      "collections.delete",
+    ],
+  },
   { group: "Inventory", permissions: ["inventory.view", "inventory.edit"] },
-  { group: "Orders", permissions: ["orders.view", "orders.edit", "orders.fulfill", "orders.cancel", "orders.refund"] },
+  {
+    group: "Orders",
+    permissions: ["orders.view", "orders.edit", "orders.fulfill", "orders.cancel", "orders.refund"],
+  },
   { group: "Customers", permissions: ["customers.view", "customers.edit"] },
-  { group: "Coupons", permissions: ["coupons.view", "coupons.create", "coupons.edit", "coupons.delete"] },
+  {
+    group: "Coupons",
+    permissions: ["coupons.view", "coupons.create", "coupons.edit", "coupons.delete"],
+  },
   { group: "Shipping", permissions: ["shipping.view", "shipping.edit"] },
   { group: "Analytics", permissions: ["analytics.view"] },
   { group: "Staff", permissions: ["staff.view", "staff.manage"] },
@@ -43,7 +60,12 @@ export const PERMISSION_GROUPS: Array<{ group: string; permissions: string[] }> 
 export const ALL_PERMISSIONS = PERMISSION_GROUPS.flatMap((g) => g.permissions);
 
 /** Permissions that must never be granted to non-admin roles from the UI. */
-export const SENSITIVE_PERMISSIONS = ["payment_settings.view", "payment_settings.manage", "staff.manage", "settings.manage"];
+export const SENSITIVE_PERMISSIONS = [
+  "payment_settings.view",
+  "payment_settings.manage",
+  "staff.manage",
+  "settings.manage",
+];
 
 export const DEFAULT_INACTIVITY_MINUTES = 15;
 export const ONLINE_WINDOW_MINUTES = 15;
@@ -62,7 +84,13 @@ export function actionLabel(action: string): string {
     update: "Updated record",
     delete: "Deleted record",
   };
-  return map[action] ?? action.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+  return (
+    map[action] ??
+    action
+      .replace(/_/g, " ")
+      .toLowerCase()
+      .replace(/^\w/, (c) => c.toUpperCase())
+  );
 }
 
 export function formatDuration(totalSeconds: number): string {

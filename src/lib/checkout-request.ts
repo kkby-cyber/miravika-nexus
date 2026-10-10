@@ -21,4 +21,6 @@ export const checkoutBodySchema = z.object({
   billing_same_as_shipping: z.boolean().default(true),
   shipping_method_id: z.string().uuid().optional().nullable(),
   coupon_code: z.string().max(40).optional().nullable(),
+  // Server decides whether COD is accepted (see lib/cod.ts); defaults to prepaid.
+  payment_method: z.enum(["razorpay", "cod"]).default("razorpay"),
 });

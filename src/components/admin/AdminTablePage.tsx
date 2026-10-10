@@ -13,10 +13,7 @@ type Resource =
   | "import"
   | "settings";
 
-const CONFIG: Record<
-  Resource,
-  { table: string | null; columns: string[]; description: string }
-> = {
+const CONFIG: Record<Resource, { table: string | null; columns: string[]; description: string }> = {
   products: {
     table: "products",
     columns: ["title", "slug", "status", "base_price", "created_at"],

@@ -24,18 +24,21 @@ export function useStaffSession(userId: string | null) {
   const viewedRef = useRef<Set<string>>(new Set());
   const lastBeatRef = useRef(0);
 
-  const beat = useCallback(async (id: string) => {
-    try {
-      const res = await staffHeartbeat({ data: { sessionId: id } });
-      if (res.status !== "ACTIVE") {
-        sessionStorage.removeItem(STORAGE_KEY);
-        await supabase.auth.signOut();
-        navigate({ to: "/auth" });
+  const beat = useCallback(
+    async (id: string) => {
+      try {
+        const res = await staffHeartbeat({ data: { sessionId: id } });
+        if (res.status !== "ACTIVE") {
+          sessionStorage.removeItem(STORAGE_KEY);
+          await supabase.auth.signOut();
+          navigate({ to: "/auth" });
+        }
+      } catch {
+        // transient network errors: keep the session, next beat retries
       }
-    } catch {
-      // transient network errors: keep the session, next beat retries
-    }
-  }, [navigate]);
+    },
+    [navigate],
+  );
 
   useEffect(() => {
     if (!userId) return;
@@ -102,21 +105,18 @@ export function useStaffSession(userId: string | null) {
     }).catch(() => undefined);
   }, [pathname, sessionId, userId]);
 
-  const endSession = useCallback(
-    async (reason: string) => {
-      const id = idRef.current;
-      idRef.current = null;
-      sessionStorage.removeItem(STORAGE_KEY);
-      if (id) {
-        try {
-          await endStaffSession({ data: { sessionId: id, reason } });
-        } catch {
-          // best effort
-        }
+  const endSession = useCallback(async (reason: string) => {
+    const id = idRef.current;
+    idRef.current = null;
+    sessionStorage.removeItem(STORAGE_KEY);
+    if (id) {
+      try {
+        await endStaffSession({ data: { sessionId: id, reason } });
+      } catch {
+        // best effort
       }
-    },
-    [],
-  );
+    }
+  }, []);
 
   return { sessionId, endSession };
 }

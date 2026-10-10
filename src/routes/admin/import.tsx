@@ -1,22 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
-import {
-  AlertCircle,
-  CheckCircle2,
-  FileUp,
-  Loader2,
-  Upload,
-  XCircle,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, FileUp, Loader2, Upload, XCircle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  commitCatalogImport,
-  previewCatalogImport,
-} from "@/lib/catalog-import.functions";
+import { commitCatalogImport, previewCatalogImport } from "@/lib/catalog-import.functions";
 
 export const Route = createFileRoute("/admin/import")({
   component: Page,
@@ -83,7 +73,10 @@ function parseCsvLine(line: string): string[] {
 }
 
 function parseCsv(text: string): CsvRow[] {
-  const normalizedText = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const normalizedText = text
+    .replace(/^\uFEFF/, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
 
   const lines: string[] = [];
   let current = "";
@@ -125,9 +118,7 @@ function parseCsv(text: string): CsvRow[] {
     throw new Error("CSV header row is missing.");
   }
 
-  const headers = parseCsvLine(headerLine).map((header) =>
-    header.trim().replace(/^"|"$/g, ""),
-  );
+  const headers = parseCsvLine(headerLine).map((header) => header.trim().replace(/^"|"$/g, ""));
 
   if (!headers.some(Boolean)) {
     throw new Error("CSV header row is empty.");
@@ -177,9 +168,7 @@ function StatCard({
   return (
     <Card>
       <CardContent className="p-4">
-        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-          {label}
-        </p>
+        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
         <p className={`mt-2 text-2xl font-semibold ${toneClass}`}>{value}</p>
       </CardContent>
     </Card>
@@ -269,7 +258,7 @@ function Page() {
     if (!preview || preview.invalidCount > 0 || !preview.importBatchId) return;
 
     const confirmed = window.confirm(
-      `Commit ${preview.total} products from the saved preview? Products may become active and visible, and supplied stock values may update available inventory.`
+      `Commit ${preview.total} products from the saved preview? Products may become active and visible, and supplied stock values may update available inventory.`,
     );
     if (!confirmed) return;
 
@@ -291,8 +280,7 @@ function Page() {
     }
   }
 
-  const invalidRows =
-    preview?.rows.filter((row) => row.errors.length > 0) ?? [];
+  const invalidRows = preview?.rows.filter((row) => row.errors.length > 0) ?? [];
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -300,13 +288,11 @@ function Page() {
         <div>
           <div className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Catalog Import
-            </h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Catalog Import</h1>
           </div>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Import Amazon and Flipkart catalog data into Nexus using SKU as the
-            primary product identity.
+            Import Amazon and Flipkart catalog data into Nexus using SKU as the primary product
+            identity.
           </p>
         </div>
 
@@ -336,8 +322,8 @@ function Page() {
             <div>
               <p className="font-medium">Catalog import completed</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {commitResult.total} rows processed — {commitResult.created} new
-                products and {commitResult.updated} updated products.
+                {commitResult.total} rows processed — {commitResult.created} new products and{" "}
+                {commitResult.updated} updated products.
               </p>
             </div>
           </CardContent>
@@ -352,9 +338,7 @@ function Page() {
           <div className="rounded-lg border border-dashed border-border bg-secondary/30 p-8 text-center">
             <FileUp className="mx-auto h-8 w-8 text-muted-foreground" />
 
-            <p className="mt-3 font-medium">
-              {fileName || "Choose an Amazon / Flipkart CSV"}
-            </p>
+            <p className="mt-3 font-medium">{fileName || "Choose an Amazon / Flipkart CSV"}</p>
 
             <p className="mt-1 text-sm text-muted-foreground">
               SKU, product title and selling price are required.
@@ -444,9 +428,7 @@ function Page() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline">Row {row.rowNumber}</Badge>
                       {row.sku && <Badge variant="outline">{row.sku}</Badge>}
-                      {row.title && (
-                        <span className="text-sm font-medium">{row.title}</span>
-                      )}
+                      {row.title && <span className="text-sm font-medium">{row.title}</span>}
                     </div>
 
                     <ul className="mt-2 space-y-1 text-sm text-destructive">
@@ -502,13 +484,9 @@ function Page() {
                         </td>
                         <td className="max-w-[420px] p-3">
                           {row.errors.length > 0 ? (
-                            <span className="text-destructive">
-                              {row.errors.join(" · ")}
-                            </span>
+                            <span className="text-destructive">{row.errors.join(" · ")}</span>
                           ) : row.warnings.length > 0 ? (
-                            <span className="text-amber-600">
-                              {row.warnings.join(" · ")}
-                            </span>
+                            <span className="text-amber-600">{row.warnings.join(" · ")}</span>
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
@@ -539,8 +517,8 @@ function Page() {
                     : "Commit is locked until all rows pass validation."}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Existing products are matched by SKU. Inventory reserved/sold
-                  quantities are preserved during updates.
+                  Existing products are matched by SKU. Inventory reserved/sold quantities are
+                  preserved during updates.
                 </p>
               </div>
 

@@ -14,7 +14,8 @@ export function requestMeta() {
   const req = getRequest();
   const headers = req?.headers;
   const forwarded = headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const ip = forwarded || headers?.get("cf-connecting-ip") || null;
+  // Prefer the Cloudflare-set address; x-forwarded-for is client-controlled.
+  const ip = headers?.get("cf-connecting-ip") || forwarded || null;
   const ua = headers?.get("user-agent") || null;
   return { ip, ua };
 }
@@ -45,7 +46,12 @@ async function getInactivityThreshold(db: any): Promise<number> {
 }
 
 function sessionSeconds(
-  s: { started_at: string; ended_at: string | null; revoked_at: string | null; last_activity_at: string },
+  s: {
+    started_at: string;
+    ended_at: string | null;
+    revoked_at: string | null;
+    last_activity_at: string;
+  },
   nowMs: number,
   thresholdMin: number,
 ): number {
@@ -161,7 +167,13 @@ export async function revokeSession(ctx: StaffCtx, sessionId: string) {
 
 export async function recordActivity(
   ctx: StaffCtx,
-  input: { action: string; entityType?: string; entityId?: string; entityName?: string; metadata?: Record<string, unknown> },
+  input: {
+    action: string;
+    entityType?: string;
+    entityId?: string;
+    entityName?: string;
+    metadata?: Record<string, unknown>;
+  },
 ) {
   await requireStaff(ctx);
   const action = String(input.action || "").slice(0, 80);
@@ -202,7 +214,9 @@ export async function getStaffOverview(ctx: StaffCtx) {
       db.from("profiles").select("id, email, full_name, created_at"),
       db
         .from("staff_sessions")
-        .select("id, user_id, started_at, ended_at, revoked_at, last_activity_at, user_agent, ip_address")
+        .select(
+          "id, user_id, started_at, ended_at, revoked_at, last_activity_at, user_agent, ip_address",
+        )
         .gte("started_at", weekAgo.toISOString())
         .order("started_at", { ascending: false }),
       db
@@ -235,7 +249,9 @@ export async function getStaffOverview(ctx: StaffCtx) {
       id: p.id,
       name: p.full_name || p.email || "Staff member",
       email: p.email,
-      roles: (roleRows ?? []).filter((r: any) => r.user_id === p.id).map((r: any) => r.role as StaffRole),
+      roles: (roleRows ?? [])
+        .filter((r: any) => r.user_id === p.id)
+        .map((r: any) => r.role as StaffRole),
       createdAt: p.created_at,
       presence: presenceOf(active, nowMs, thresholdMin),
       currentSessionId: active?.id ?? null,
@@ -329,13 +345,17 @@ export async function getStaffDetail(
     db.from("user_roles").select("role, created_at").eq("user_id", staffId),
     db
       .from("staff_sessions")
-      .select("id, started_at, ended_at, revoked_at, end_reason, last_activity_at, ip_address, user_agent")
+      .select(
+        "id, started_at, ended_at, revoked_at, end_reason, last_activity_at, ip_address, user_agent",
+      )
       .eq("user_id", staffId)
       .order("started_at", { ascending: false })
       .limit(50),
     db
       .from("audit_logs")
-      .select("id, action, entity_type, entity_id, entity_name, metadata, ip_address, user_agent, created_at")
+      .select(
+        "id, action, entity_type, entity_id, entity_name, metadata, ip_address, user_agent, created_at",
+      )
       .eq("actor_id", staffId)
       .gte("created_at", from.toISOString())
       .lte("created_at", to.toISOString())
@@ -366,19 +386,31 @@ export async function getStaffDetail(
     productsEdited: countWhere((l) => l.entity_type === "product" && l.action === "update"),
     imagesUploaded: countWhere((l) => l.action === "PRODUCT_IMAGE_UPLOADED"),
     inventoryUpdates: countWhere(
-      (l) => l.entity_type === "inventory" || l.action === "INVENTORY_UPDATED" || l.action === "INVENTORY_ADJUSTED",
+      (l) =>
+        l.entity_type === "inventory" ||
+        l.action === "INVENTORY_UPDATED" ||
+        l.action === "INVENTORY_ADJUSTED",
     ),
     ordersProcessed: countWhere((l) => l.entity_type === "order" || l.action?.startsWith("ORDER_")),
     couponsCreated: countWhere((l) => l.entity_type === "coupon" && l.action === "insert"),
-    customerActions: countWhere((l) => l.entity_type === "customer" || l.action?.startsWith("CUSTOMER_")),
-    settingsChanged: countWhere((l) => l.entity_type === "setting" || l.action === "SETTINGS_UPDATED"),
+    customerActions: countWhere(
+      (l) => l.entity_type === "customer" || l.action?.startsWith("CUSTOMER_"),
+    ),
+    settingsChanged: countWhere(
+      (l) => l.entity_type === "setting" || l.action === "SETTINGS_UPDATED",
+    ),
     activeSec: sessionList
       .filter((s: any) => new Date(s.started_at) >= from && new Date(s.started_at) <= to)
       .reduce((sum: number, s: any) => sum + s.durationSec, 0),
   };
 
   return {
-    profile: { id: profile.id, name: profile.full_name || profile.email, email: profile.email, createdAt: profile.created_at },
+    profile: {
+      id: profile.id,
+      name: profile.full_name || profile.email,
+      email: profile.email,
+      createdAt: profile.created_at,
+    },
     roles: roleList,
     permissions: uniquePerms,
     presence: presenceOf(active, nowMs, thresholdMin),
@@ -412,7 +444,8 @@ export async function getLeaderboard(ctx: StaffCtx, metric: string, days: number
       m === "actions" ||
       (m === "orders" && (l.entity_type === "order" || String(l.action).startsWith("ORDER_"))) ||
       (m === "products" && l.entity_type === "product") ||
-      (m === "inventory" && (l.entity_type === "inventory" || String(l.action).startsWith("INVENTORY_")));
+      (m === "inventory" &&
+        (l.entity_type === "inventory" || String(l.action).startsWith("INVENTORY_")));
     if (hit) score.set(l.actor_id, (score.get(l.actor_id) ?? 0) + 1);
   }
   const rows = [...score.entries()]
@@ -448,7 +481,10 @@ export async function setRolePermission(
   if (input.allowed) {
     const { error } = await db
       .from("role_permissions")
-      .upsert({ role: input.role, permission: input.permission }, { onConflict: "role,permission" });
+      .upsert(
+        { role: input.role, permission: input.permission },
+        { onConflict: "role,permission" },
+      );
     if (error) throw new Error(error.message);
   } else {
     const { error } = await db
@@ -484,7 +520,9 @@ export async function searchAuditLog(
   const db = ctx.supabase;
   let q = db
     .from("audit_logs")
-    .select("id, actor_id, action, entity_type, entity_id, entity_name, metadata, ip_address, user_agent, created_at")
+    .select(
+      "id, actor_id, action, entity_type, entity_id, entity_name, metadata, ip_address, user_agent, created_at",
+    )
     .order("created_at", { ascending: false })
     .limit(300);
   if (filters.action) q = q.ilike("action", `%${filters.action.slice(0, 40)}%`);

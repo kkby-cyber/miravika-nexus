@@ -80,8 +80,8 @@ function AdminLayout() {
         <MiravikaLogo size={64} />
         <h1 className="font-display text-xl">No staff access</h1>
         <p className="max-w-md text-sm text-muted-foreground">
-          Your account ({user.email}) has no MIRAVIKA staff role yet. An Owner must assign one before
-          the console unlocks.
+          Your account ({user.email}) has no MIRAVIKA staff role yet. An Owner must assign one
+          before the console unlocks.
         </p>
         <Button variant="outline" onClick={() => supabase.auth.signOut()}>
           Sign out
@@ -100,7 +100,9 @@ function AdminLayout() {
     <div className="flex h-full flex-col px-3 py-6">
       <div className="flex flex-col items-center px-3 pb-6">
         <MiravikaLogo size={56} />
-        <p className="mt-3 font-display text-sm tracking-[0.3em] text-sidebar-foreground">MIRAVIKA</p>
+        <p className="mt-3 font-display text-sm tracking-[0.3em] text-sidebar-foreground">
+          MIRAVIKA
+        </p>
         <p className="mt-1 text-[9px] uppercase tracking-[0.35em] text-sidebar-primary">
           Commerce Core
         </p>

@@ -7,12 +7,7 @@ import {
 
 export const previewCatalogImport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (data: {
-      filename: string;
-      rows: Record<string, unknown>[];
-    }) => data,
-  )
+  .inputValidator((data: { filename: string; rows: Record<string, unknown>[] }) => data)
   .handler(async ({ data, context }) => {
     return preview(context, data);
   });
@@ -22,7 +17,9 @@ export const commitCatalogImport = createServerFn({ method: "POST" })
   .inputValidator((data: { importBatchId: string }) => {
     if (
       typeof data?.importBatchId !== "string" ||
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(data.importBatchId)
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        data.importBatchId,
+      )
     ) {
       throw new Error("A valid import batch ID is required.");
     }

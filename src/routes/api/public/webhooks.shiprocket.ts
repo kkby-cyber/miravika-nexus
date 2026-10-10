@@ -4,6 +4,17 @@ import { applyShipmentStatus } from "@/lib/shipment.server";
 import { getServerEnv } from "@/lib/env.server";
 import { shipmentEventKey } from "@/lib/shipment-state";
 
+/** Compares secrets without leaking how many leading characters matched. */
+function constantTimeEqual(a: string, b: string): boolean {
+  const left = new TextEncoder().encode(a);
+  const right = new TextEncoder().encode(b);
+  let diff = left.length ^ right.length;
+  for (let i = 0; i < Math.max(left.length, right.length); i += 1) {
+    diff |= (left[i] ?? 0) ^ (right[i] ?? 0);
+  }
+  return diff === 0;
+}
+
 /**
  * Shiprocket status callback. Shiprocket authenticates with a shared token sent
  * in `x-api-key`, configured as SHIPROCKET_WEBHOOK_TOKEN. Requests without a
@@ -15,7 +26,7 @@ export const Route = createFileRoute("/api/public/webhooks/shiprocket")({
       POST: async ({ request }) => {
         const expected = getServerEnv().shiprocketWebhookToken;
         const provided = request.headers.get("x-api-key");
-        if (!expected || provided !== expected) {
+        if (!expected || !provided || !constantTimeEqual(provided, expected)) {
           logEvent("error", "shiprocket_webhook_unauthorized", {});
           return fail("UNAUTHORIZED", "Invalid token.", 401);
         }

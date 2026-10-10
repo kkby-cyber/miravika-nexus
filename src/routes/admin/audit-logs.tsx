@@ -101,7 +101,7 @@ function AuditLogsPage() {
                   </td>
                 </tr>
               )}
-              {(data ?? []).map((l: any) => (
+              {(data ?? []).map((l) => (
                 <tr key={l.id} className="border-b border-border/60 last:border-0">
                   <td className="p-3 text-muted-foreground">
                     {new Date(l.created_at).toLocaleString("en-IN")}

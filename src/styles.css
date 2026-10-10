@@ -63,12 +63,9 @@
   --color-gold-foreground: var(--gold-foreground);
   --color-success: var(--success);
   --color-warning: var(--warning);
-  --font-sans:
-    "Poppins", ui-sans-serif, system-ui, sans-serif;
-  --font-display:
-    "Playfair Display", ui-serif, Georgia, serif;
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Playfair Display", ui-serif, Georgia, serif;
 }
-
 
 :root {
   --radius: 0.5rem;
@@ -110,7 +107,6 @@
   --sidebar-border: oklch(0.38 0.012 60);
   --sidebar-ring: oklch(0.78 0.085 82);
 }
-
 
 .dark {
   --background: oklch(0.129 0.042 264.695);

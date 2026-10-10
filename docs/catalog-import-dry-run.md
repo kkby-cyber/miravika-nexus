@@ -79,3 +79,26 @@ of MIRAVIKA**) · `MIR-EARRINGS-BOYS-DAIMOND-002` (Pundriksh) · `MIRAV-EAR-DAIM
 3. **Decide the 22 third-party rows** (above).
 4. Re-upload in Admin → Import (old previews are refused by the v2 rules), review the
    preview counts against this report, then commit.
+
+## Import file format — `docs/catalog-import-template.csv`
+
+A header-only template whose columns are verified against the importer by
+`tests/catalog-import-rules.test.ts`. One row per SKU; nothing is published until a staff
+member reviews the Admin → Import preview and commits it.
+
+| Column                                     | Required       | Notes                                                                                     |
+| ------------------------------------------ | -------------- | ----------------------------------------------------------------------------------------- |
+| `Seller SKU Id`                            | yes            | The marketplace SKU; it is the product's permanent identity.                              |
+| `Product Title`                            | yes            | Without a `Brand` column the title must contain "MIRAVIKA".                               |
+| `Brand`                                    | recommended    | Must be `MIRAVIKA`; any other value is rejected.                                          |
+| `Category`                                 | yes            | Flipkart code: `earring`, `necklace_chain`, `hair_accessory`, `rakhi_set`, `puff_sponge`. |
+| `Your Selling Price`                       | yes            | Rupees, > 0 and ≤ MRP.                                                                    |
+| `MRP`                                      | recommended    | Rupees.                                                                                   |
+| `Your Stock Count`                         | yes for sale   | Whole number ≥ 0. Blank = not purchasable.                                                |
+| `Image URLs`                               | yes to publish | `https://` links separated by `                                                           | `; first is the main image. Blank = draft. |
+| `Description`, `Color`, `Size`, `Material` | optional       | Blank cells never overwrite stored values on re-import.                                   |
+| `HSN`, `GST`                               | optional       | GST as a percentage (e.g. `3`).                                                           |
+| `Weight (g)`, `Length`, `Width`, `Height`  | for shipping   | Grams and centimetres; used for courier rates.                                            |
+
+Fill in only real marketplace data: prices, stock and photo links must come from your
+Flipkart/Amazon listings and hosted photos.

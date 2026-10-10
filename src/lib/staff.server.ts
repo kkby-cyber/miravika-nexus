@@ -1,6 +1,9 @@
 // Server-only staff CRM logic. Imported by staff.functions.ts only.
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { getRequest } from "@tanstack/react-start/server";
 import {
+  STAFF_ROLES,
   ALL_PERMISSIONS,
   DEFAULT_INACTIVITY_MINUTES,
   ONLINE_WINDOW_MINUTES,
@@ -8,7 +11,21 @@ import {
   type StaffRole,
 } from "./staff-constants";
 
-type StaffCtx = { supabase: any; userId: string };
+type Db = SupabaseClient<Database>;
+
+/** Optional RPC arguments must be omitted (not null/undefined) under exactOptionalPropertyTypes. */
+function present<K extends string, V>(key: K, value: V | null | undefined): Partial<Record<K, V>> {
+  return value === null || value === undefined ? {} : ({ [key]: value } as Record<K, V>);
+}
+
+function metaArgs(meta: { ip: string | null; ua: string | null }) {
+  return { ...present("_ip", meta.ip), ...present("_user_agent", meta.ua) };
+}
+
+function isStaffRole(value: string): value is StaffRole {
+  return (STAFF_ROLES as readonly string[]).includes(value);
+}
+type StaffCtx = { supabase: Db; userId: string };
 
 export function requestMeta() {
   const req = getRequest();
@@ -35,7 +52,7 @@ export async function requirePermission(ctx: StaffCtx, permission: string) {
   if (!data) throw new Error(`Forbidden: missing permission ${permission}`);
 }
 
-async function getInactivityThreshold(db: any): Promise<number> {
+async function getInactivityThreshold(db: Db): Promise<number> {
   const { data } = await db
     .from("site_settings")
     .select("value")
@@ -90,8 +107,7 @@ export async function startSession(ctx: StaffCtx) {
     _entity_type: "session",
     _entity_id: data.id,
     _entity_name: "Staff login",
-    _ip: meta.ip,
-    _user_agent: meta.ua,
+    ...metaArgs(meta),
   });
   return { sessionId: data.id as string, startedAt: data.started_at as string };
 }
@@ -128,8 +144,7 @@ export async function endSession(ctx: StaffCtx, sessionId: string, reason: strin
       _entity_type: "session",
       _entity_id: sessionId,
       _entity_name: "Staff logout",
-      _ip: meta.ip,
-      _user_agent: meta.ua,
+      ...metaArgs(meta),
     });
   }
   return { ok: true };
@@ -159,8 +174,7 @@ export async function revokeSession(ctx: StaffCtx, sessionId: string) {
     _entity_id: sessionId,
     _entity_name: "Session revoked",
     _metadata: { target_user_id: target.user_id },
-    _ip: meta.ip,
-    _user_agent: meta.ua,
+    ...metaArgs(meta),
   });
   return { ok: true };
 }
@@ -181,12 +195,11 @@ export async function recordActivity(
   const meta = requestMeta();
   const { error } = await ctx.supabase.rpc("log_staff_activity", {
     _action: action,
-    _entity_type: input.entityType?.slice(0, 60) ?? null,
-    _entity_id: input.entityId?.slice(0, 120) ?? null,
-    _entity_name: input.entityName?.slice(0, 200) ?? null,
-    _metadata: input.metadata ?? {},
-    _ip: meta.ip,
-    _user_agent: meta.ua,
+    ...present("_entity_type", input.entityType?.slice(0, 60)),
+    ...present("_entity_id", input.entityId?.slice(0, 120)),
+    ...present("_entity_name", input.entityName?.slice(0, 200)),
+    _metadata: (input.metadata ?? {}) as Json,
+    ...metaArgs(meta),
   });
   if (error) throw new Error(error.message);
   return { ok: true };
@@ -225,33 +238,31 @@ export async function getStaffOverview(ctx: StaffCtx) {
         .gte("created_at", weekAgo.toISOString())
         .limit(10000),
     ]);
-  const todayLogs = (weekLogs ?? []).filter((l: any) => new Date(l.created_at) >= today);
+  const todayLogs = (weekLogs ?? []).filter((l) => new Date(l.created_at) >= today);
 
-  const staffIds = new Set((roleRows ?? []).map((r: any) => r.user_id));
-  const staffProfiles = (profiles ?? []).filter((p: any) => staffIds.has(p.id));
+  const staffIds = new Set((roleRows ?? []).map((r) => r.user_id));
+  const staffProfiles = (profiles ?? []).filter((p) => staffIds.has(p.id));
   const logs = todayLogs ?? [];
 
-  const staff = staffProfiles.map((p: any) => {
-    const userSessions = (sessions ?? []).filter((s: any) => s.user_id === p.id);
-    const active = userSessions.find((s: any) => !s.ended_at && !s.revoked_at);
-    const todaySessions = userSessions.filter((s: any) => new Date(s.started_at) >= today);
+  const staff = staffProfiles.map((p) => {
+    const userSessions = (sessions ?? []).filter((s) => s.user_id === p.id);
+    const active = userSessions.find((s) => !s.ended_at && !s.revoked_at);
+    const todaySessions = userSessions.filter((s) => new Date(s.started_at) >= today);
     const todaySec = todaySessions.reduce(
-      (sum: number, s: any) => sum + sessionSeconds(s, nowMs, thresholdMin),
+      (sum: number, s) => sum + sessionSeconds(s, nowMs, thresholdMin),
       0,
     );
     const weekSec = userSessions.reduce(
-      (sum: number, s: any) => sum + sessionSeconds(s, nowMs, thresholdMin),
+      (sum: number, s) => sum + sessionSeconds(s, nowMs, thresholdMin),
       0,
     );
-    const userLogs = logs.filter((l: any) => l.actor_id === p.id);
-    const userWeekLogs = (weekLogs ?? []).filter((l: any) => l.actor_id === p.id);
+    const userLogs = logs.filter((l) => l.actor_id === p.id);
+    const userWeekLogs = (weekLogs ?? []).filter((l) => l.actor_id === p.id);
     return {
       id: p.id,
       name: p.full_name || p.email || "Staff member",
       email: p.email,
-      roles: (roleRows ?? [])
-        .filter((r: any) => r.user_id === p.id)
-        .map((r: any) => r.role as StaffRole),
+      roles: (roleRows ?? []).filter((r) => r.user_id === p.id).map((r) => r.role as StaffRole),
       createdAt: p.created_at,
       presence: presenceOf(active, nowMs, thresholdMin),
       currentSessionId: active?.id ?? null,
@@ -263,13 +274,13 @@ export async function getStaffOverview(ctx: StaffCtx) {
       todayActions: userLogs.length,
       weekActions: userWeekLogs.length,
       todayOrders: userLogs.filter(
-        (l: any) => l.entity_type === "order" || String(l.action).startsWith("ORDER_"),
+        (l) => l.entity_type === "order" || String(l.action).startsWith("ORDER_"),
       ).length,
       todayProducts: userLogs.filter(
-        (l: any) => l.entity_type === "product" || String(l.action).startsWith("PRODUCT_"),
+        (l) => l.entity_type === "product" || String(l.action).startsWith("PRODUCT_"),
       ).length,
       todayInventory: userLogs.filter(
-        (l: any) => l.entity_type === "inventory" || String(l.action).startsWith("INVENTORY_"),
+        (l) => l.entity_type === "inventory" || String(l.action).startsWith("INVENTORY_"),
       ).length,
     };
   });
@@ -287,9 +298,9 @@ export async function getStaffOverview(ctx: StaffCtx) {
       idle: counts.IDLE,
       offline: counts.OFFLINE,
       todayActions: logs.length,
-      todayOrders: staff.reduce((s: number, x: any) => s + x.todayOrders, 0),
-      todayProducts: staff.reduce((s: number, x: any) => s + x.todayProducts, 0),
-      todayInventory: staff.reduce((s: number, x: any) => s + x.todayInventory, 0),
+      todayOrders: staff.reduce((s: number, x) => s + x.todayOrders, 0),
+      todayProducts: staff.reduce((s: number, x) => s + x.todayProducts, 0),
+      todayInventory: staff.reduce((s: number, x) => s + x.todayInventory, 0),
       todayActiveSec: staff.reduce(
         (sum: number, s: { todayActiveSec: number }) => sum + s.todayActiveSec,
         0,
@@ -307,15 +318,17 @@ export async function getStaffDashboardActivity(ctx: StaffCtx) {
     .select("id, actor_id, action, entity_type, entity_id, entity_name, created_at")
     .order("created_at", { ascending: false })
     .limit(12);
-  const actorIds = [...new Set((logs ?? []).map((l: any) => l.actor_id).filter(Boolean))];
+  const actorIds = [
+    ...new Set((logs ?? []).map((l) => l.actor_id).filter((id): id is string => Boolean(id))),
+  ];
   const { data: actors } = actorIds.length
     ? await db.from("profiles").select("id, full_name, email").in("id", actorIds)
     : { data: [] };
   const nameOf = (id: string | null) => {
-    const a = (actors ?? []).find((p: any) => p.id === id);
+    const a = (actors ?? []).find((p) => p.id === id);
     return a ? a.full_name || a.email : "System";
   };
-  return (logs ?? []).map((l: any) => ({ ...l, actor_name: nameOf(l.actor_id) }));
+  return (logs ?? []).map((l) => ({ ...l, actor_name: nameOf(l.actor_id) }));
 }
 
 // ---------- Staff detail ----------
@@ -366,20 +379,20 @@ export async function getStaffDetail(
 
   if (!profile) throw new Error("Staff member not found");
 
-  const roleList: StaffRole[] = (roles ?? []).map((r: any) => r.role as StaffRole);
+  const roleList: StaffRole[] = (roles ?? []).map((r) => r.role as StaffRole);
   const permissions: string[] = ((permRows ?? []) as Array<{ role: string; permission: string }>)
     .filter((p) => (roleList as string[]).includes(p.role))
     .map((p) => p.permission);
   const uniquePerms: string[] = Array.from(new Set(permissions)).sort();
 
-  const sessionList = (sessions ?? []).map((s: any) => ({
+  const sessionList = (sessions ?? []).map((s) => ({
     ...s,
     durationSec: sessionSeconds(s, nowMs, thresholdMin),
   }));
-  const active = sessionList.find((s: any) => !s.ended_at && !s.revoked_at);
+  const active = sessionList.find((s) => !s.ended_at && !s.revoked_at);
 
   const list = logs ?? [];
-  const countWhere = (pred: (l: any) => boolean) => list.filter(pred).length;
+  const countWhere = (pred: (l: (typeof list)[number]) => boolean) => list.filter(pred).length;
   const performance = {
     totalActions: list.length,
     productsCreated: countWhere((l) => l.entity_type === "product" && l.action === "insert"),
@@ -400,8 +413,8 @@ export async function getStaffDetail(
       (l) => l.entity_type === "setting" || l.action === "SETTINGS_UPDATED",
     ),
     activeSec: sessionList
-      .filter((s: any) => new Date(s.started_at) >= from && new Date(s.started_at) <= to)
-      .reduce((sum: number, s: any) => sum + s.durationSec, 0),
+      .filter((s) => new Date(s.started_at) >= from && new Date(s.started_at) <= to)
+      .reduce((sum: number, s) => sum + s.durationSec, 0),
   };
 
   return {
@@ -450,7 +463,7 @@ export async function getLeaderboard(ctx: StaffCtx, metric: string, days: number
   }
   const rows = [...score.entries()]
     .map(([id, value]) => {
-      const p = (profiles ?? []).find((x: any) => x.id === id);
+      const p = (profiles ?? []).find((x) => x.id === id);
       return { id, name: p?.full_name || p?.email || "Staff", value };
     })
     .sort((a, b) => b.value - a.value)
@@ -477,20 +490,19 @@ export async function setRolePermission(
   });
   if (!isSuper) throw new Error("Forbidden: SUPER_ADMIN required");
   if (!ALL_PERMISSIONS.includes(input.permission)) throw new Error("Unknown permission");
+  if (!isStaffRole(input.role)) throw new Error("Unknown role");
+  const role = input.role;
   const db = ctx.supabase;
   if (input.allowed) {
     const { error } = await db
       .from("role_permissions")
-      .upsert(
-        { role: input.role, permission: input.permission },
-        { onConflict: "role,permission" },
-      );
+      .upsert({ role, permission: input.permission }, { onConflict: "role,permission" });
     if (error) throw new Error(error.message);
   } else {
     const { error } = await db
       .from("role_permissions")
       .delete()
-      .eq("role", input.role)
+      .eq("role", role)
       .eq("permission", input.permission);
     if (error) throw new Error(error.message);
   }
@@ -535,13 +547,15 @@ export async function searchAuditLog(
   }
   const { data, error } = await q;
   if (error) throw new Error(error.message);
-  const actorIds = [...new Set((data ?? []).map((l: any) => l.actor_id).filter(Boolean))];
+  const actorIds = [
+    ...new Set((data ?? []).map((l) => l.actor_id).filter((id): id is string => Boolean(id))),
+  ];
   const { data: actors } = actorIds.length
     ? await db.from("profiles").select("id, full_name, email").in("id", actorIds)
     : { data: [] };
   const nameOf = (id: string | null) => {
-    const a = (actors ?? []).find((p: any) => p.id === id);
+    const a = (actors ?? []).find((p) => p.id === id);
     return a ? a.full_name || a.email : "System";
   };
-  return (data ?? []).map((l: any) => ({ ...l, actor_name: nameOf(l.actor_id) }));
+  return (data ?? []).map((l) => ({ ...l, actor_name: nameOf(l.actor_id) }));
 }

@@ -46,6 +46,15 @@ export function mapMarketplaceCollections(values: string[]): string[] {
  * Returns the canonical brand when the row is a MIRAVIKA product, else null.
  * An explicit brand column must say MIRAVIKA; without one, the listing title must.
  */
+export function isHttpsUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && Boolean(url.hostname.includes("."));
+  } catch {
+    return false;
+  }
+}
+
 export function resolveBrand(brand: string, title: string): string | null {
   if (brand) return brand.trim().toUpperCase() === STORE_BRAND ? STORE_BRAND : null;
   return /\bmiravika\b/i.test(title) ? STORE_BRAND : null;
@@ -388,6 +397,13 @@ export function normalizeRow(raw: RawRow, rowNumber: number): NormalizedRow {
     warnings.push("Category does not map to a storefront collection");
   }
 
+  // Images are shown to shoppers as-is: reject anything that is not a well-formed https URL
+  // rather than storing a link that renders as a broken image.
+  row.image_urls = [...new Set(row.image_urls)];
+  for (const url of row.image_urls) {
+    if (!isHttpsUrl(url))
+      errors.push(`Image URL must be a valid https:// link: ${url.slice(0, 80)}`);
+  }
   if (!row.image_urls.length) {
     warnings.push("No product images supplied — the product will be imported as a draft");
   }

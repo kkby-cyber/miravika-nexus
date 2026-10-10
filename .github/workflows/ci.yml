@@ -1,0 +1,101 @@
+name: CI / Deploy
+
+# Pull requests: quality gate + secret scan.
+# Pushes to main: the same gate, then a production deploy of the Cloudflare Worker — only
+# when the repository variable DEPLOY_ENABLED is "true" and the protected `production`
+# environment (which holds the Cloudflare credentials) approves the run.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    name: Format, lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Format check
+        run: npx prettier --check "src/**/*.{ts,tsx,css}" "tests/**/*.ts" "supabase/**/*.sql" --ignore-unknown
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm run test:run
+      - name: Build Worker bundle
+        run: npm run build
+      - name: Dependency audit (high and critical)
+        run: npm audit --omit=dev --audit-level=high
+
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Scans only the commits in this PR / push, so the historical (rotated) leak does not
+      # permanently fail CI while any new secret does.
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy:
+    name: Deploy Worker to production
+    needs: [verify, secret-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ vars.NEXUS_PUBLIC_URL }}
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Deploy with Wrangler
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4.141.0 deploy \
+            --config .output/server/wrangler.json \
+            --message "github ${GITHUB_SHA::7} run ${GITHUB_RUN_ID}"
+      - name: Verify health and readiness
+        env:
+          BASE_URL: ${{ vars.NEXUS_PUBLIC_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$BASE_URL" || { echo "::error::Set repository variable NEXUS_PUBLIC_URL"; exit 1; }
+          for i in $(seq 1 10); do
+            body=$(curl -fsS --max-time 10 "$BASE_URL/api/health" || true)
+            if echo "$body" | grep -q '"service":"miravika-nexus"'; then echo "health ok"; break; fi
+            [ "$i" = 10 ] && { echo "::error::/api/health did not respond"; exit 1; }
+            sleep 6
+          done
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$BASE_URL/api/ready")
+          echo "ready status: $code"
+          [ "$code" = 200 ] || { echo "::error::/api/ready returned $code — check Worker secrets and logs"; exit 1; }

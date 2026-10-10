@@ -23,6 +23,7 @@ import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 import { Route as AdminProductsRouteImport } from './routes/admin/products'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiReadyRouteImport } from './routes/api/ready'
 import { Route as AdminStaffIndexRouteImport } from './routes/admin/staff/index'
 import { Route as AdminStaffStaffIdRouteImport } from './routes/admin/staff/$staffId'
 import { Route as AdminStaffPermissionsRouteImport } from './routes/admin/staff/permissions'
@@ -114,6 +115,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiReadyRoute = ApiReadyRouteImport.update({
+  id: '/api/ready',
+  path: '/api/ready',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminStaffIndexRoute = AdminStaffIndexRouteImport.update({
@@ -244,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/ready': typeof ApiReadyRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/staff/$staffId': typeof AdminStaffStaffIdRoute
   '/admin/staff/permissions': typeof AdminStaffPermissionsRoute
@@ -281,6 +288,7 @@ export interface FileRoutesByTo {
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/ready': typeof ApiReadyRoute
   '/admin': typeof AdminIndexRoute
   '/admin/staff/$staffId': typeof AdminStaffStaffIdRoute
   '/admin/staff/permissions': typeof AdminStaffPermissionsRoute
@@ -320,6 +328,7 @@ export interface FileRoutesById {
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/ready': typeof ApiReadyRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/staff/$staffId': typeof AdminStaffStaffIdRoute
   '/admin/staff/permissions': typeof AdminStaffPermissionsRoute
@@ -360,6 +369,7 @@ export interface FileRouteTypes {
     | '/admin/products'
     | '/admin/settings'
     | '/api/health'
+    | '/api/ready'
     | '/admin/'
     | '/admin/staff/$staffId'
     | '/admin/staff/permissions'
@@ -397,6 +407,7 @@ export interface FileRouteTypes {
     | '/admin/products'
     | '/admin/settings'
     | '/api/health'
+    | '/api/ready'
     | '/admin'
     | '/admin/staff/$staffId'
     | '/admin/staff/permissions'
@@ -435,6 +446,7 @@ export interface FileRouteTypes {
     | '/admin/products'
     | '/admin/settings'
     | '/api/health'
+    | '/api/ready'
     | '/admin/'
     | '/admin/staff/$staffId'
     | '/admin/staff/permissions'
@@ -465,6 +477,7 @@ export interface RootRouteChildren {
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiReadyRoute: typeof ApiReadyRoute
   ApiPublicAddressesRoute: typeof ApiPublicAddressesRouteWithChildren
   ApiPublicCartRoute: typeof ApiPublicCartRoute
   ApiPublicCheckoutRoute: typeof ApiPublicCheckoutRoute
@@ -582,6 +595,13 @@ declare module '@tanstack/react-router' {
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ready': {
+      id: '/api/ready'
+      path: '/api/ready'
+      fullPath: '/api/ready'
+      preLoaderRoute: typeof ApiReadyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/staff/': {
@@ -804,6 +824,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRouteRoute: AdminRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ApiReadyRoute: ApiReadyRoute,
   ApiPublicAddressesRoute: ApiPublicAddressesRouteWithChildren,
   ApiPublicCartRoute: ApiPublicCartRoute,
   ApiPublicCheckoutRoute: ApiPublicCheckoutRoute,

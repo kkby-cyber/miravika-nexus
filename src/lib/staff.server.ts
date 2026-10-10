@@ -14,7 +14,8 @@ export function requestMeta() {
   const req = getRequest();
   const headers = req?.headers;
   const forwarded = headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const ip = forwarded || headers?.get("cf-connecting-ip") || null;
+  // Prefer the Cloudflare-set address; x-forwarded-for is client-controlled.
+  const ip = headers?.get("cf-connecting-ip") || forwarded || null;
   const ua = headers?.get("user-agent") || null;
   return { ip, ua };
 }
